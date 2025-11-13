@@ -45,7 +45,7 @@ const TeamSchema: Schema = new Schema(
 
 // Ensure leader is included in members array
 TeamSchema.pre('save', function (next) {
-  const team = this as ITeam;
+  const team = this as unknown as ITeam;
   if (team.leader) {
     const leaderId = String(team.leader);
     const members = (team.members || []) as mongoose.Types.ObjectId[];

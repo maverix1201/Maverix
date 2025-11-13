@@ -72,7 +72,7 @@ export async function GET() {
     recentClockIns.forEach((attendance: any) => {
       activities.push({
         type: 'clockIn',
-        id: attendance._id.toString(),
+        id: String(attendance._id),
         userId: attendance.userId,
         timestamp: new Date(attendance.clockIn),
         details: {
@@ -85,7 +85,7 @@ export async function GET() {
     recentClockOuts.forEach((attendance: any) => {
       activities.push({
         type: 'clockOut',
-        id: attendance._id.toString() + '_out',
+        id: String(attendance._id) + '_out',
         userId: attendance.userId,
         timestamp: new Date(attendance.clockOut),
         details: {
@@ -98,7 +98,7 @@ export async function GET() {
     recentLeaveRequests.forEach((leave: any) => {
       activities.push({
         type: 'leaveRequest',
-        id: leave._id.toString(),
+        id: String(leave._id),
         userId: leave.userId,
         timestamp: new Date(leave.createdAt),
         details: {

@@ -45,11 +45,13 @@ const TeamSchema: Schema = new Schema(
 
 // Ensure leader is included in members array
 TeamSchema.pre('save', function (next) {
-  if (this.leader) {
-    const leaderId = this.leader.toString();
-    const memberIds = this.members.map((id: any) => id.toString());
+  const team = this as ITeam;
+  if (team.leader) {
+    const leaderId = String(team.leader);
+    const members = (team.members || []) as mongoose.Types.ObjectId[];
+    const memberIds = members.map((id) => String(id));
     if (!memberIds.includes(leaderId)) {
-      this.members.push(this.leader);
+      team.members.push(team.leader);
     }
   }
   next();

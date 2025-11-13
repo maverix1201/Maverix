@@ -34,8 +34,11 @@ export async function GET(request: NextRequest) {
     // Extract unique leave types
     const leaveTypeMap = new Map();
     allottedLeaves.forEach((leave: any) => {
-      if (leave.leaveType && !leaveTypeMap.has(leave.leaveType._id.toString())) {
-        leaveTypeMap.set(leave.leaveType._id.toString(), leave.leaveType);
+      if (leave.leaveType && leave.leaveType._id) {
+        const leaveTypeId = String(leave.leaveType._id);
+        if (!leaveTypeMap.has(leaveTypeId)) {
+          leaveTypeMap.set(leaveTypeId, leave.leaveType);
+        }
       }
     });
 

@@ -73,18 +73,18 @@ export async function PUT(
       team.leader = leaderId;
       
       // Ensure leader is in members array
-      const currentMembers = team.members.map((id: any) => id.toString());
-      if (!currentMembers.includes(leaderId.toString())) {
+      const currentMembers = (team.members || []).map((id) => String(id));
+      if (!currentMembers.includes(String(leaderId))) {
         team.members.push(leaderId);
       }
     }
 
     if (members && Array.isArray(members)) {
       const memberIds = members.map((id: string) => new mongoose.Types.ObjectId(id));
-      const leaderId = team.leader.toString();
+      const leaderId = String(team.leader);
       
       // Ensure leader is always in members
-      const allMembers = [...new Set([leaderId, ...memberIds.map((id: any) => id.toString())])]
+      const allMembers = [...new Set([leaderId, ...memberIds.map((id) => String(id))])]
         .map((id) => new mongoose.Types.ObjectId(id));
       
       team.members = allMembers;

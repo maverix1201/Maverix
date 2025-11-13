@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       : [];
 
     // Ensure leader is in members array
-    const allMembers = [...new Set([leaderId.toString(), ...memberIds.map((id: any) => id.toString())])]
+    const allMembers = [...new Set([String(leaderId), ...memberIds.map((id) => String(id))])]
       .map((id) => new mongoose.Types.ObjectId(id));
 
     const team = new Team({

@@ -2,7 +2,7 @@ import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import connectDB from '@/lib/mongodb';
-import User from '@/models/User';
+import User, { IUser } from '@/models/User';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -39,13 +39,14 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Invalid password');
         }
 
+        const userDoc = user as IUser;
         return {
-          id: user._id.toString(),
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          profileImage: user.profileImage,
-          mobileNumber: user.mobileNumber,
+          id: userDoc._id.toString(),
+          email: userDoc.email,
+          name: userDoc.name,
+          role: userDoc.role,
+          profileImage: userDoc.profileImage,
+          mobileNumber: userDoc.mobileNumber,
         };
       },
     }),
@@ -62,9 +63,10 @@ export const authOptions: NextAuthOptions = {
         await connectDB();
         const dbUser = await User.findById(token.id).select('profileImage mobileNumber name');
         if (dbUser) {
-          token.profileImage = dbUser.profileImage;
-          token.mobileNumber = dbUser.mobileNumber;
-          token.name = dbUser.name;
+          const userDoc = dbUser as IUser;
+          token.profileImage = userDoc.profileImage;
+          token.mobileNumber = userDoc.mobileNumber;
+          token.name = userDoc.name;
         }
       }
       return token;

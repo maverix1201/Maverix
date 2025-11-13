@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Lock, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import Logo from '@/components/Logo';
 
-export default function VerifyPage() {
+function VerifyForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get('token');
@@ -253,6 +253,21 @@ export default function VerifyPage() {
         </form>
       </motion.div>
     </div>
+  );
+}
+
+export default function VerifyPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-auth-pages flex items-center justify-center p-4 relative">
+        <div className="bg-white/50 backdrop-blur-xl rounded-lg shadow-xl p-6 w-full max-w-md text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <VerifyForm />
+    </Suspense>
   );
 }
 

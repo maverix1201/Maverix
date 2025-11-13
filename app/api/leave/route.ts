@@ -6,6 +6,8 @@ import Leave from '@/models/Leave';
 import LeaveType from '@/models/LeaveType';
 import mongoose from 'mongoose';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);

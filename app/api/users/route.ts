@@ -6,6 +6,8 @@ import User from '@/models/User';
 import { sendVerificationEmail } from '@/utils/sendEmail';
 import crypto from 'crypto';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);

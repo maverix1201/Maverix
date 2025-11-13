@@ -5,6 +5,8 @@ import connectDB from '@/lib/mongodb';
 import Attendance from '@/models/Attendance';
 import Leave from '@/models/Leave';
 
+export const dynamic = 'force-dynamic';
+
 interface Activity {
   type: 'clockIn' | 'clockOut' | 'leaveRequest';
   id: string;

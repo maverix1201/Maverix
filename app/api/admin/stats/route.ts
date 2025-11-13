@@ -7,6 +7,8 @@ import Leave from '@/models/Leave';
 import Finance from '@/models/Finance';
 import Attendance from '@/models/Attendance';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);

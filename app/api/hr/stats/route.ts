@@ -5,6 +5,8 @@ import connectDB from '@/lib/mongodb';
 import Leave from '@/models/Leave';
 import Attendance from '@/models/Attendance';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);

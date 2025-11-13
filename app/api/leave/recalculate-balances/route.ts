@@ -5,6 +5,8 @@ import connectDB from '@/lib/mongodb';
 import Leave from '@/models/Leave';
 import mongoose from 'mongoose';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);

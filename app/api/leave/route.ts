@@ -178,15 +178,15 @@ export async function POST(request: NextRequest) {
         const hrAndAdminEmails = hrAndAdminUsers.map((user: any) => user.email).filter(Boolean);
 
         if (hrAndAdminEmails.length > 0) {
-          const user = typeof leave.userId === 'object' && leave.userId ? leave.userId : null;
-          const leaveType = typeof leave.leaveType === 'object' && leave.leaveType ? leave.leaveType : null;
+          const user = typeof leave.userId === 'object' && leave.userId && 'email' in leave.userId ? leave.userId as any : null;
+          const leaveType = typeof leave.leaveType === 'object' && leave.leaveType && 'name' in leave.leaveType ? leave.leaveType as any : null;
 
           if (user && leaveType) {
             await sendLeaveRequestNotificationToHR(hrAndAdminEmails, {
-              employeeName: user.name || 'Employee',
-              employeeEmail: user.email || '',
-              profileImage: user.profileImage,
-              leaveType: leaveType.name || 'Leave',
+              employeeName: (user.name as string) || 'Employee',
+              employeeEmail: (user.email as string) || '',
+              profileImage: user.profileImage as string | undefined,
+              leaveType: (leaveType.name as string) || 'Leave',
               reason: leave.reason || '',
               days: leave.days || 0,
               startDate: format(new Date(leave.startDate), 'MMM dd, yyyy'),

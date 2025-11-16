@@ -114,21 +114,21 @@ export async function PUT(
 
     // Send email notification to employee about approval/rejection
     try {
-      const user = typeof leave.userId === 'object' && leave.userId ? leave.userId : null;
-      const leaveType = typeof leave.leaveType === 'object' && leave.leaveType ? leave.leaveType : null;
-      const approver = typeof leave.approvedBy === 'object' && leave.approvedBy ? leave.approvedBy : null;
+      const user = typeof leave.userId === 'object' && leave.userId && 'email' in leave.userId ? leave.userId as any : null;
+      const leaveType = typeof leave.leaveType === 'object' && leave.leaveType && 'name' in leave.leaveType ? leave.leaveType as any : null;
+      const approver = typeof leave.approvedBy === 'object' && leave.approvedBy && 'name' in leave.approvedBy ? leave.approvedBy as any : null;
 
-      if (user && leaveType && user.email) {
+      if (user && leaveType && 'email' in user && user.email) {
         await sendLeaveStatusNotificationToEmployee({
-          employeeName: user.name || 'Employee',
-          employeeEmail: user.email,
-          leaveType: leaveType.name || 'Leave',
+          employeeName: (user.name as string) || 'Employee',
+          employeeEmail: user.email as string,
+          leaveType: (leaveType.name as string) || 'Leave',
           days: leave.days || 0,
           startDate: format(new Date(leave.startDate), 'MMM dd, yyyy'),
           endDate: format(new Date(leave.endDate), 'MMM dd, yyyy'),
           status: status as 'approved' | 'rejected',
           rejectionReason: status === 'rejected' ? leave.rejectionReason : undefined,
-          approvedBy: approver ? approver.name : undefined,
+          approvedBy: approver ? (approver.name as string) : undefined,
         });
       }
     } catch (emailError) {

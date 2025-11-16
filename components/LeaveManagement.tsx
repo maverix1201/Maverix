@@ -130,7 +130,6 @@ export default function LeaveManagement({
         leave._id === id ? { ...leave, status: 'approved' as const } : leave
       )
     );
-    toast.success('Leave request approved');
 
     try {
       const res = await fetch(`/api/leave/${id}`, {
@@ -139,15 +138,36 @@ export default function LeaveManagement({
         body: JSON.stringify({ status: 'approved' }),
       });
 
+      let data;
+      try {
+        data = await res.json();
+      } catch (parseError) {
+        // Revert on error
+        setLeaves(previousLeaves);
+        toast.error('Failed to parse server response');
+        return;
+      }
+
       if (!res.ok) {
         // Revert on error
         setLeaves(previousLeaves);
-        toast.error('Failed to approve leave request');
+        toast.error(data.error || 'Failed to approve leave request');
+        return;
       }
-    } catch (err) {
+
+      // Update with the response data to ensure consistency
+      if (data.leave) {
+        setLeaves(
+          leaves.map((leave) =>
+            leave._id === id ? { ...leave, ...data.leave, status: 'approved' as const } : leave
+          )
+        );
+      }
+      toast.success('Leave request approved successfully');
+    } catch (err: any) {
       // Revert on error
       setLeaves(previousLeaves);
-      toast.error('An error occurred');
+      toast.error(err.message || 'An error occurred while approving leave request');
     }
   };
 
@@ -162,7 +182,6 @@ export default function LeaveManagement({
         leave._id === id ? { ...leave, status: 'rejected' as const } : leave
       )
     );
-    toast.success('Leave request rejected');
 
     try {
       const res = await fetch(`/api/leave/${id}`, {
@@ -171,15 +190,36 @@ export default function LeaveManagement({
         body: JSON.stringify({ status: 'rejected', rejectionReason: reason }),
       });
 
+      let data;
+      try {
+        data = await res.json();
+      } catch (parseError) {
+        // Revert on error
+        setLeaves(previousLeaves);
+        toast.error('Failed to parse server response');
+        return;
+      }
+
       if (!res.ok) {
         // Revert on error
         setLeaves(previousLeaves);
-        toast.error('Failed to reject leave request');
+        toast.error(data.error || 'Failed to reject leave request');
+        return;
       }
-    } catch (err) {
+
+      // Update with the response data to ensure consistency
+      if (data.leave) {
+        setLeaves(
+          leaves.map((leave) =>
+            leave._id === id ? { ...leave, ...data.leave, status: 'rejected' as const } : leave
+          )
+        );
+      }
+      toast.success('Leave request rejected successfully');
+    } catch (err: any) {
       // Revert on error
       setLeaves(previousLeaves);
-      toast.error('An error occurred');
+      toast.error(err.message || 'An error occurred while rejecting leave request');
     }
   };
 

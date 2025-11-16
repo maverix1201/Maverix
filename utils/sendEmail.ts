@@ -162,3 +162,229 @@ export async function sendPasswordResetEmail(email: string, token: string) {
   }
 }
 
+interface LeaveRequestEmailData {
+  employeeName: string;
+  employeeEmail: string;
+  profileImage?: string;
+  leaveType: string;
+  reason: string;
+  days: number;
+  startDate: string;
+  endDate: string;
+}
+
+export async function sendLeaveRequestNotificationToHR(
+  hrEmails: string[],
+  data: LeaveRequestEmailData
+) {
+  const profileImageUrl = data.profileImage
+    ? `${process.env.NEXT_PUBLIC_BASE_URL}${data.profileImage}`
+    : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(data.employeeName) + '&size=100&background=667eea&color=fff';
+
+  const mailOptions = {
+    from: getFromEmail(),
+    to: hrEmails.join(', '),
+    subject: `New Leave Request from ${data.employeeName} - MM HRM`,
+    html: `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>New Leave Request</title>
+      </head>
+      <body style="font-family: 'Trebuchet MS', Arial, sans-serif; line-height: 1.6; color: #202124; max-width: 600px; margin: 0 auto; padding: 0;">
+        <div style="padding: 10px 0 0 0;">
+          <div style="border-radius: 12px; overflow: hidden; background: #ffffff; max-width: 500px; margin: 0 auto; border: 1px solid #e8e8e8;">
+            <div style="background-color: #ffffff; padding: 30px 40px 20px; text-align: center;">
+              <img src="https://image.s7.sfmc-content.com/lib/fe2a11717d640474741277/m/1/7698e693-e9b1-4d90-8eab-2403bd4d6d8c.png" width="120px" alt="MaveriX Logo" style="display: block; margin: 0 auto;">
+            </div>
+            <div style="padding: 0 40px 40px 40px; background: #ffffff;">
+              <h1 style="color: #202124; margin-top: 0; font-size: 28px; font-weight: 700; margin-bottom: 15px; text-align: center;">New Leave Request</h1>
+              <div style="border-top: 1px solid #f0f0f0; margin-bottom: 30px;"></div>
+              
+              <div style="text-align: center; margin-bottom: 30px;">
+                <img src="${profileImageUrl}" alt="${data.employeeName}" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid #667eea; object-fit: cover;">
+                <h2 style="color: #202124; margin-top: 15px; font-size: 22px; font-weight: 600;">${data.employeeName}</h2>
+                <p style="color: #5f6368; font-size: 14px; margin: 5px 0;">${data.employeeEmail}</p>
+              </div>
+
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 8px 0; color: #5f6368; font-size: 14px; font-weight: 600;">Leave Type:</td>
+                    <td style="padding: 8px 0; color: #202124; font-size: 14px; text-align: right;">${data.leaveType}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #5f6368; font-size: 14px; font-weight: 600;">Total Days:</td>
+                    <td style="padding: 8px 0; color: #202124; font-size: 14px; text-align: right; font-weight: 600;">${data.days} ${data.days === 1 ? 'day' : 'days'}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #5f6368; font-size: 14px; font-weight: 600;">Start Date:</td>
+                    <td style="padding: 8px 0; color: #202124; font-size: 14px; text-align: right;">${data.startDate}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #5f6368; font-size: 14px; font-weight: 600;">End Date:</td>
+                    <td style="padding: 8px 0; color: #202124; font-size: 14px; text-align: right;">${data.endDate}</td>
+                  </tr>
+                </table>
+              </div>
+
+              <div style="margin-bottom: 30px;">
+                <p style="color: #5f6368; font-size: 14px; font-weight: 600; margin-bottom: 10px;">Reason:</p>
+                <p style="color: #202124; font-size: 14px; background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 0; white-space: pre-wrap;">${data.reason}</p>
+              </div>
+
+              <div style="text-align: center; margin-top: 30px;">
+                <a href="${process.env.NEXT_PUBLIC_BASE_URL}/hr/leaves" 
+                   style="background-color: #1a73e8; 
+                          color: white; 
+                          padding: 14px 30px; 
+                          text-decoration: none; 
+                          border-radius: 8px; 
+                          display: inline-block; 
+                          font-weight: 600; 
+                          font-size: 17px;
+                          box-shadow: 0 4px 12px rgba(26, 115, 232, 0.4);">
+                  Review Leave Request
+                </a>
+              </div>
+            </div>
+            <div style="background-color: #f8f9fa; padding: 20px 40px; text-align: center; font-size: 12px; color: #999; border-top: 1px solid #e8e8e8;">
+              <img src="https://image.s7.sfmc-content.com/lib/fe2a11717d640474741277/m/1/7698e693-e9b1-4d90-8eab-2403bd4d6d8c.png" width="50px" alt="MaveriX Logo" style="display: block; margin: 0 auto;">
+              <p style="margin-top: 5px; margin-bottom: 0;">&copy; All Rights Reserved. Made with ❤️ by <b>Chandu</b></p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    return { success: true };
+  } catch (error) {
+    console.error('Error sending leave request email:', error);
+    return { success: false, error };
+  }
+}
+
+interface LeaveStatusEmailData {
+  employeeName: string;
+  employeeEmail: string;
+  leaveType: string;
+  days: number;
+  startDate: string;
+  endDate: string;
+  status: 'approved' | 'rejected';
+  rejectionReason?: string;
+  approvedBy?: string;
+}
+
+export async function sendLeaveStatusNotificationToEmployee(
+  data: LeaveStatusEmailData
+) {
+  const isApproved = data.status === 'approved';
+  const statusColor = isApproved ? '#10b981' : '#ef4444';
+  const statusText = isApproved ? 'Approved' : 'Rejected';
+  const statusIcon = isApproved ? '✅' : '❌';
+
+  const mailOptions = {
+    from: getFromEmail(),
+    to: data.employeeEmail,
+    subject: `Leave Request ${statusText} - MM HRM`,
+    html: `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Leave Request ${statusText}</title>
+      </head>
+      <body style="font-family: 'Trebuchet MS', Arial, sans-serif; line-height: 1.6; color: #202124; max-width: 600px; margin: 0 auto; padding: 0;">
+        <div style="padding: 10px 0 0 0;">
+          <div style="border-radius: 12px; overflow: hidden; background: #ffffff; max-width: 500px; margin: 0 auto; border: 1px solid #e8e8e8;">
+            <div style="background-color: #ffffff; padding: 30px 40px 20px; text-align: center;">
+              <img src="https://image.s7.sfmc-content.com/lib/fe2a11717d640474741277/m/1/7698e693-e9b1-4d90-8eab-2403bd4d6d8c.png" width="120px" alt="MaveriX Logo" style="display: block; margin: 0 auto;">
+            </div>
+            <div style="padding: 0 40px 40px 40px; background: #ffffff;">
+              <h1 style="color: #202124; margin-top: 0; font-size: 28px; font-weight: 700; margin-bottom: 15px; text-align: center;">Leave Request ${statusText}</h1>
+              <div style="border-top: 1px solid #f0f0f0; margin-bottom: 30px;"></div>
+              
+              <div style="text-align: center; margin-bottom: 30px;">
+                <div style="display: inline-block; background: ${statusColor}20; padding: 20px; border-radius: 50%; margin-bottom: 15px;">
+                  <span style="font-size: 48px;">${statusIcon}</span>
+                </div>
+                <h2 style="color: ${statusColor}; margin-top: 15px; font-size: 24px; font-weight: 600;">Your leave request has been ${statusText.toLowerCase()}</h2>
+              </div>
+
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 8px 0; color: #5f6368; font-size: 14px; font-weight: 600;">Leave Type:</td>
+                    <td style="padding: 8px 0; color: #202124; font-size: 14px; text-align: right;">${data.leaveType}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #5f6368; font-size: 14px; font-weight: 600;">Total Days:</td>
+                    <td style="padding: 8px 0; color: #202124; font-size: 14px; text-align: right; font-weight: 600;">${data.days} ${data.days === 1 ? 'day' : 'days'}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #5f6368; font-size: 14px; font-weight: 600;">Start Date:</td>
+                    <td style="padding: 8px 0; color: #202124; font-size: 14px; text-align: right;">${data.startDate}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #5f6368; font-size: 14px; font-weight: 600;">End Date:</td>
+                    <td style="padding: 8px 0; color: #202124; font-size: 14px; text-align: right;">${data.endDate}</td>
+                  </tr>
+                  ${data.approvedBy ? `
+                  <tr>
+                    <td style="padding: 8px 0; color: #5f6368; font-size: 14px; font-weight: 600;">${isApproved ? 'Approved by:' : 'Rejected by:'}</td>
+                    <td style="padding: 8px 0; color: #202124; font-size: 14px; text-align: right;">${data.approvedBy}</td>
+                  </tr>
+                  ` : ''}
+                </table>
+              </div>
+
+              ${!isApproved && data.rejectionReason ? `
+              <div style="margin-bottom: 30px;">
+                <p style="color: #5f6368; font-size: 14px; font-weight: 600; margin-bottom: 10px;">Rejection Reason:</p>
+                <p style="color: #202124; font-size: 14px; background: #fee2e2; padding: 15px; border-radius: 8px; margin: 0; white-space: pre-wrap; border-left: 4px solid #ef4444;">${data.rejectionReason}</p>
+              </div>
+              ` : ''}
+
+              <div style="text-align: center; margin-top: 30px;">
+                <a href="${process.env.NEXT_PUBLIC_BASE_URL}/employee/leaves" 
+                   style="background-color: ${statusColor}; 
+                          color: white; 
+                          padding: 14px 30px; 
+                          text-decoration: none; 
+                          border-radius: 8px; 
+                          display: inline-block; 
+                          font-weight: 600; 
+                          font-size: 17px;
+                          box-shadow: 0 4px 12px ${statusColor}40;">
+                  View Leave Details
+                </a>
+              </div>
+            </div>
+            <div style="background-color: #f8f9fa; padding: 20px 40px; text-align: center; font-size: 12px; color: #999; border-top: 1px solid #e8e8e8;">
+              <img src="https://image.s7.sfmc-content.com/lib/fe2a11717d640474741277/m/1/7698e693-e9b1-4d90-8eab-2403bd4d6d8c.png" width="50px" alt="MaveriX Logo" style="display: block; margin: 0 auto;">
+              <p style="margin-top: 5px; margin-bottom: 0;">&copy; All Rights Reserved. Made with ❤️ by <b>Chandu</b></p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    return { success: true };
+  } catch (error) {
+    console.error('Error sending leave status email:', error);
+    return { success: false, error };
+  }
+}
+

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { User, Mail, Phone, Camera, Lock, Save, X } from 'lucide-react';
+import { User, Mail, Phone, Camera, Lock, Save, X, Calendar } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 import Image from 'next/image';
 import LoadingDots from './LoadingDots';
@@ -14,6 +14,7 @@ interface UserProfile {
   role: string;
   profileImage?: string;
   mobileNumber?: string;
+  dateOfBirth?: string;
 }
 
 export default function Profile() {
@@ -24,6 +25,7 @@ export default function Profile() {
   const [formData, setFormData] = useState({
     name: '',
     mobileNumber: '',
+    dateOfBirth: '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
@@ -40,9 +42,27 @@ export default function Profile() {
 
       if (res.ok) {
         setProfile(data.user);
+        // Format dateOfBirth for date input (YYYY-MM-DD format)
+        // Handle timezone issues by using local date instead of UTC
+        let formattedDOB = '';
+        if (data.user.dateOfBirth) {
+          try {
+            const dobDate = new Date(data.user.dateOfBirth);
+            if (!isNaN(dobDate.getTime())) {
+              // Use local date to avoid timezone shifts
+              const year = dobDate.getFullYear();
+              const month = String(dobDate.getMonth() + 1).padStart(2, '0');
+              const day = String(dobDate.getDate()).padStart(2, '0');
+              formattedDOB = `${year}-${month}-${day}`;
+            }
+          } catch (e) {
+            console.error('Error formatting dateOfBirth:', e);
+          }
+        }
         setFormData({
           name: data.user.name || '',
           mobileNumber: data.user.mobileNumber || '',
+          dateOfBirth: formattedDOB,
           currentPassword: '',
           newPassword: '',
           confirmPassword: '',
@@ -154,7 +174,8 @@ export default function Profile() {
 
       const updateData: any = {
         name: formData.name,
-        mobileNumber: formData.mobileNumber,
+        mobileNumber: formData.mobileNumber || null,
+        dateOfBirth: formData.dateOfBirth && formData.dateOfBirth.trim() !== '' ? formData.dateOfBirth : null,
       };
 
       if (formData.currentPassword && formData.newPassword) {
@@ -172,8 +193,27 @@ export default function Profile() {
 
       if (res.ok) {
         setProfile(data.user);
+        // Format dateOfBirth for date input (YYYY-MM-DD format)
+        // Handle timezone issues by using local date instead of UTC
+        let formattedDOB = '';
+        if (data.user.dateOfBirth) {
+          try {
+            const dobDate = new Date(data.user.dateOfBirth);
+            if (!isNaN(dobDate.getTime())) {
+              // Use local date to avoid timezone shifts
+              const year = dobDate.getFullYear();
+              const month = String(dobDate.getMonth() + 1).padStart(2, '0');
+              const day = String(dobDate.getDate()).padStart(2, '0');
+              formattedDOB = `${year}-${month}-${day}`;
+            }
+          } catch (e) {
+            console.error('Error formatting dateOfBirth:', e);
+          }
+        }
         setFormData({
-          ...formData,
+          name: data.user.name || '',
+          mobileNumber: data.user.mobileNumber || '',
+          dateOfBirth: formattedDOB,
           currentPassword: '',
           newPassword: '',
           confirmPassword: '',
@@ -309,6 +349,26 @@ export default function Profile() {
               placeholder="Enter mobile number"
               className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-white"
             />
+          </div>
+
+          {/* Date of Birth */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5 font-secondary">
+              <Calendar className="w-3 h-3 inline-block mr-1" />
+              Date of Birth
+            </label>
+            <input
+              type="date"
+              value={formData.dateOfBirth}
+              onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+              max={new Date().toISOString().split('T')[0]}
+              className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-white"
+            />
+            {profile?.dateOfBirth && (
+              <p className="text-xs text-gray-500 mt-1 font-secondary">
+                Current: {new Date(profile.dateOfBirth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+              </p>
+            )}
           </div>
 
           {/* Role (Read-only) */}

@@ -52,8 +52,8 @@ export default function EmployeeTeamInfo() {
 
   if (loading) {
     return (
-      <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-4 border border-white/20 max-w-[400px]">
-        <div className="flex flex-col items-center justify-center py-8">
+      <div className="w-full max-w-[400px] h-[400px] bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-4 border border-white/20 flex flex-col">
+        <div className="flex flex-col items-center justify-center flex-1">
           <LoadingDots size="lg" className="mb-3" />
           <p className="text-sm text-gray-500 font-secondary">Loading team information...</p>
         </div>
@@ -63,18 +63,20 @@ export default function EmployeeTeamInfo() {
 
   if (teams.length === 0) {
     return (
-      <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-4 border border-white/20 max-w-[400px]">
-        <h2 className="text-lg font-primary font-bold text-gray-800 mb-3">My Team</h2>
-        <div className="text-center py-6">
-          <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-          <p className="text-xs text-gray-600 font-secondary">You are not assigned to any team yet</p>
+      <div className="w-full max-w-[400px] h-[400px] bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-4 border border-white/20 flex flex-col">
+        <h2 className="text-lg font-primary font-bold text-gray-800 mb-3 flex-shrink-0">My Team</h2>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+            <p className="text-xs text-gray-600 font-secondary">You are not assigned to any team yet</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 max-w-[400px]">
+    <div className="w-full max-w-[400px] h-[400px] flex flex-col">
       {teams.map((team) => {
         // Combine leader and members, ensuring leader is first
         const allMembers = [
@@ -87,10 +89,10 @@ export default function EmployeeTeamInfo() {
             key={team._id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-gradient-to-br from-white via-white to-gray-50/50 rounded-xl shadow-lg p-4 border border-gray-200/50 backdrop-blur-sm"
+            className="w-full h-full bg-gradient-to-br from-white via-white to-gray-50/50 rounded-xl shadow-lg p-4 border border-gray-200/50 backdrop-blur-sm flex flex-col"
           >
             {/* Team Header */}
-            <div className="mb-4">
+            <div className="mb-4 flex-shrink-0">
               <div className="flex items-center gap-2 mb-1">
                 <div className="p-1.5 bg-primary/10 rounded-lg">
                   <Users className="w-4 h-4 text-primary" />
@@ -109,8 +111,8 @@ export default function EmployeeTeamInfo() {
               </div>
             </div>
 
-            {/* Team Members List */}
-            <div className="space-y-2">
+            {/* Team Members List - Scrollable */}
+            <div className="flex-1 overflow-y-auto pr-2 space-y-2">
               {allMembers.map((member) => {
                 const isLeader = member._id === team.leader._id;
                 return (
@@ -126,7 +128,7 @@ export default function EmployeeTeamInfo() {
                   >
                     {/* Leader Badge */}
                     {isLeader && (
-                      <div className="absolute -top-1.5 -right-1.5 bg-gradient-to-r from-primary to-primary-dark text-white px-1.5 py-0.5 rounded-full shadow-md flex items-center gap-0.5">
+                      <div className="absolute top-1 right-1 bg-gradient-to-r from-primary to-primary-dark text-white px-1.5 py-0.5 rounded-full shadow-md flex items-center gap-0.5">
                         <Crown className="w-2.5 h-2.5" />
                         <span className="text-[10px] font-bold font-secondary">Leader</span>
                       </div>

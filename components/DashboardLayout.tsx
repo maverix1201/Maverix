@@ -246,7 +246,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
         </nav>
 
         {/* Page content */}
-        <main className="p-2 pb-16 lg:pb-4">{children}</main>
+        <main className="bg-[#eef3ff] p-3 pb-16 lg:pb-4">{children}</main>
       </div>
     </div>
   );

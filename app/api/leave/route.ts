@@ -4,7 +4,10 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Leave from '@/models/Leave';
 import LeaveType from '@/models/LeaveType';
+import User from '@/models/User';
 import mongoose from 'mongoose';
+import { sendLeaveRequestNotificationToHR } from '@/utils/sendEmail';
+import { format } from 'date-fns';
 
 export const dynamic = 'force-dynamic';
 
@@ -99,7 +102,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid leave type' }, { status: 400 });
     }
 
-    // For employees, verify that this leave type has been allotted to them
+    // Calculate days
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+    // For employees, verify that this leave type has been allotted to them and check balance
     if ((session.user as any).role === 'employee') {
       const userIdObj = new mongoose.Types.ObjectId(userId);
       const allottedLeave = await Leave.findOne({
@@ -114,12 +122,35 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-    }
 
-    // Calculate days
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      // Calculate remaining days (considering pending and approved requests)
+      let remainingDays = allottedLeave.remainingDays;
+      if (remainingDays === undefined || remainingDays === null) {
+        remainingDays = allottedLeave.days || 0;
+      }
+
+      // Get all approved requests for this leave type (to calculate used balance)
+      const approvedRequests = await Leave.find({
+        userId: userIdObj,
+        leaveType: leaveTypeId,
+        allottedBy: { $exists: false },
+        status: 'approved', // Only count approved requests for balance calculation
+      }).lean();
+
+      // Calculate total used days
+      const totalUsed = approvedRequests.reduce((sum: number, req: any) => sum + (req.days || 0), 0);
+      
+      // Calculate actual remaining days
+      const actualRemainingDays = Math.max(0, (allottedLeave.days || 0) - totalUsed);
+
+      // Check if balance is sufficient
+      if (actualRemainingDays < days) {
+        return NextResponse.json(
+          { error: `Insufficient leave balance. You have ${actualRemainingDays} days remaining, but requested ${days} days.` },
+          { status: 400 }
+        );
+      }
+    }
 
     const leave = new Leave({
       userId,
@@ -133,6 +164,41 @@ export async function POST(request: NextRequest) {
 
     await leave.save();
     await leave.populate('userId', 'name email profileImage');
+    await leave.populate('leaveType', 'name description');
+
+    // Send email notification to HR and Admin (only for employee requests)
+    if ((session.user as any).role === 'employee') {
+      try {
+        // Get all HR and Admin emails
+        const hrAndAdminUsers = await User.find({
+          role: { $in: ['hr', 'admin'] },
+          emailVerified: true,
+        }).select('email').lean();
+
+        const hrAndAdminEmails = hrAndAdminUsers.map((user: any) => user.email).filter(Boolean);
+
+        if (hrAndAdminEmails.length > 0) {
+          const user = typeof leave.userId === 'object' && leave.userId ? leave.userId : null;
+          const leaveType = typeof leave.leaveType === 'object' && leave.leaveType ? leave.leaveType : null;
+
+          if (user && leaveType) {
+            await sendLeaveRequestNotificationToHR(hrAndAdminEmails, {
+              employeeName: user.name || 'Employee',
+              employeeEmail: user.email || '',
+              profileImage: user.profileImage,
+              leaveType: leaveType.name || 'Leave',
+              reason: leave.reason || '',
+              days: leave.days || 0,
+              startDate: format(new Date(leave.startDate), 'MMM dd, yyyy'),
+              endDate: format(new Date(leave.endDate), 'MMM dd, yyyy'),
+            });
+          }
+        }
+      } catch (emailError) {
+        // Log email error but don't fail the request
+        console.error('Error sending leave request notification email:', emailError);
+      }
+    }
 
     return NextResponse.json({
       message: 'Leave request submitted successfully',

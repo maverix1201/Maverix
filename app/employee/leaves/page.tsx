@@ -30,10 +30,6 @@ export default function EmployeeLeavesPage() {
   return (
     <DashboardLayout role="employee">
       <div className="space-y-4">
-        <div>
-          <h1 className="text-2xl font-primary font-bold text-gray-800">Leave Management</h1>
-          <p className="text-sm text-gray-600 mt-0.5 font-secondary">View your allotted leaves and request new ones</p>
-        </div>
 
         {loading ? (
           <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-12 flex flex-col items-center justify-center">

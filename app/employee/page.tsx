@@ -6,6 +6,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import EmployeeTeamInfo from '@/components/EmployeeTeamInfo';
 import EmployeeSearch from '@/components/EmployeeSearch';
 import TimeTrackingWidget from '@/components/TimeTrackingWidget';
+import UpcomingBirthdays from '@/components/UpcomingBirthdays';
 import { Clock, Calendar, Users, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useToast } from '@/contexts/ToastContext';
@@ -96,7 +97,7 @@ export default function EmployeeDashboard() {
           <TimeTrackingWidget />
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -190,44 +191,14 @@ export default function EmployeeDashboard() {
             </motion.div>
           </div>
 
-          {/* Team Information */}
-          <EmployeeTeamInfo />
+          {/* Right Side Section - Team Info and Upcoming Birthdays */}
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Team Information */}
+            <EmployeeTeamInfo />
 
-          {/* Quick Actions */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-white/50"
-          >
-            <h2 className="text-xl font-primary font-semibold text-gray-800 mb-4">Quick Actions</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <a
-                href="/employee/leaves"
-                className="p-4 border-2 border-gray-200 rounded-xl hover:border-primary hover:bg-primary/5 transition-all group"
-              >
-                <Calendar className="w-6 h-6 text-primary mb-2 group-hover:scale-110 transition-transform" />
-                <h3 className="text-sm font-primary font-semibold text-gray-800">Apply for Leave</h3>
-                <p className="text-xs text-gray-600 mt-1 font-secondary">Request time off</p>
-              </a>
-              <a
-                href="/employee/attendance"
-                className="p-4 border-2 border-gray-200 rounded-xl hover:border-primary hover:bg-primary/5 transition-all group"
-              >
-                <Clock className="w-6 h-6 text-primary mb-2 group-hover:scale-110 transition-transform" />
-                <h3 className="text-sm font-primary font-semibold text-gray-800">View Attendance</h3>
-                <p className="text-xs text-gray-600 mt-1 font-secondary">Check your attendance history</p>
-              </a>
-              <a
-                href="/employee/finance"
-                className="p-4 border-2 border-gray-200 rounded-xl hover:border-primary hover:bg-primary/5 transition-all group"
-              >
-                <TrendingUp className="w-6 h-6 text-primary mb-2 group-hover:scale-110 transition-transform" />
-                <h3 className="text-sm font-primary font-semibold text-gray-800">Salary Slips</h3>
-                <p className="text-xs text-gray-600 mt-1 font-secondary">View your payslips</p>
-              </a>
-            </div>
-          </motion.div>
+            {/* Upcoming Birthdays */}
+            <UpcomingBirthdays />
+          </div>
         </div>
       </div>
     </DashboardLayout>

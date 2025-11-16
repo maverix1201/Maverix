@@ -7,6 +7,7 @@ export interface IUser extends Document {
   role: 'admin' | 'hr' | 'employee';
   profileImage?: string;
   mobileNumber?: string;
+  dateOfBirth?: Date;
   emailVerified: boolean;
   verificationToken?: string;
   verificationTokenExpiry?: Date;
@@ -45,6 +46,9 @@ const UserSchema: Schema = new Schema(
     mobileNumber: {
       type: String,
       trim: true,
+    },
+    dateOfBirth: {
+      type: Date,
     },
     emailVerified: {
       type: Boolean,

@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         { mobileNumber: searchRegex },
       ],
     })
-      .select('_id name email mobileNumber profileImage role')
+      .select('_id name email mobileNumber profileImage role dateOfBirth')
       .limit(20)
       .lean();
 

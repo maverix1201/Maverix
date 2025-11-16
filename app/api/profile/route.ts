@@ -38,29 +38,56 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { name, mobileNumber, profileImage, currentPassword, newPassword } = await request.json();
+    const { name, mobileNumber, dateOfBirth, profileImage, currentPassword, newPassword } = await request.json();
 
     await connectDB();
 
-    const user = await User.findById((session.user as any).id);
+    const userId = (session.user as any).id;
+    const user = await User.findById(userId);
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // Build update object
+    const updateFields: any = {};
+
     // Update name
     if (name) {
-      user.name = name;
+      updateFields.name = name;
     }
 
     // Update mobile number
     if (mobileNumber !== undefined) {
-      user.mobileNumber = mobileNumber;
+      updateFields.mobileNumber = mobileNumber || null;
+    }
+
+    // Update date of birth - always include if provided in request
+    if (dateOfBirth !== undefined) {
+      if (dateOfBirth && typeof dateOfBirth === 'string' && dateOfBirth.trim() !== '') {
+        try {
+          // Parse the date string (format: YYYY-MM-DD)
+          // Use UTC to avoid timezone shifts
+          const [year, month, day] = dateOfBirth.split('-').map(Number);
+          const dobDate = new Date(Date.UTC(year, month - 1, day));
+          if (!isNaN(dobDate.getTime())) {
+            updateFields.dateOfBirth = dobDate;
+          } else {
+            updateFields.dateOfBirth = null;
+          }
+        } catch (error) {
+          console.error('Error parsing dateOfBirth:', error);
+          updateFields.dateOfBirth = null;
+        }
+      } else {
+        // Set to null if empty string or null
+        updateFields.dateOfBirth = null;
+      }
     }
 
     // Update profile image
     if (profileImage !== undefined) {
-      user.profileImage = profileImage;
+      updateFields.profileImage = profileImage;
     }
 
     // Update password if provided
@@ -74,13 +101,23 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: 'New password must be at least 6 characters' }, { status: 400 });
       }
 
-      user.password = await bcrypt.hash(newPassword, 10);
+      updateFields.password = await bcrypt.hash(newPassword, 10);
     }
 
-    await user.save();
+    // Ensure we have at least one field to update
+    if (Object.keys(updateFields).length === 0) {
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
+    }
 
-    // Return user without password
-    const userResponse = await User.findById(user._id).select('-password');
+    // Update user using findByIdAndUpdate to ensure all fields are saved
+    await User.findByIdAndUpdate(
+      userId, 
+      { $set: updateFields }, 
+      { new: true, runValidators: true }
+    );
+
+    // Return updated user without password
+    const userResponse = await User.findById(userId).select('-password').lean();
 
     return NextResponse.json({
       message: 'Profile updated successfully',

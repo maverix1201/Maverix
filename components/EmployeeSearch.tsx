@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Mail, Phone, User } from 'lucide-react';
+import { Search, X, Mail, Phone, User, Calendar } from 'lucide-react';
 import UserAvatar from './UserAvatar';
 import LoadingDots from './LoadingDots';
+import Image from 'next/image';
+import { format } from 'date-fns';
 
 interface Employee {
   _id: string;
@@ -13,6 +15,7 @@ interface Employee {
   mobileNumber?: string;
   profileImage?: string;
   role: string;
+  dateOfBirth?: string;
 }
 
 export default function EmployeeSearch() {
@@ -20,6 +23,7 @@ export default function EmployeeSearch() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -111,6 +115,7 @@ export default function EmployeeSearch() {
                     key={employee._id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
+                    onClick={() => setSelectedEmployee(employee)}
                     className="p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
@@ -142,6 +147,120 @@ export default function EmployeeSearch() {
               </div>
             )}
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Employee Detail Modal */}
+      <AnimatePresence>
+        {selectedEmployee && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white/90 backdrop-blur-xl rounded-2xl p-6 w-full max-w-md border border-white/20"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-primary font-bold text-gray-800">Employee Details</h2>
+                <button
+                  onClick={() => setSelectedEmployee(null)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Profile Photo */}
+                <div className="flex justify-center">
+                  {selectedEmployee.profileImage ? (
+                    <div className="relative w-24 h-24 rounded-full overflow-hidden border-4 border-primary/20">
+                      <Image
+                        src={selectedEmployee.profileImage}
+                        alt={selectedEmployee.name}
+                        fill
+                        className="object-cover"
+                        sizes="96px"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center border-4 border-primary/20">
+                      <span className="text-2xl font-primary font-semibold text-primary">
+                        {selectedEmployee.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Name */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1 font-secondary">
+                    <User className="w-3 h-3 inline-block mr-1" />
+                    Full Name
+                  </label>
+                  <p className="text-sm font-semibold text-gray-800 font-primary">
+                    {selectedEmployee.name}
+                  </p>
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1 font-secondary">
+                    <Mail className="w-3 h-3 inline-block mr-1" />
+                    Email Address
+                  </label>
+                  <p className="text-sm text-gray-800 font-secondary">
+                    {selectedEmployee.email}
+                  </p>
+                </div>
+
+                {/* Mobile Number */}
+                {selectedEmployee.mobileNumber && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1 font-secondary">
+                      <Phone className="w-3 h-3 inline-block mr-1" />
+                      Mobile Number
+                    </label>
+                    <p className="text-sm text-gray-800 font-secondary">
+                      {selectedEmployee.mobileNumber}
+                    </p>
+                  </div>
+                )}
+
+                {/* Date of Birth */}
+                {selectedEmployee.dateOfBirth && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1 font-secondary">
+                      <Calendar className="w-3 h-3 inline-block mr-1" />
+                      Date of Birth
+                    </label>
+                    <p className="text-sm text-gray-800 font-secondary">
+                      {format(new Date(selectedEmployee.dateOfBirth), 'MMM dd, yyyy')}
+                    </p>
+                  </div>
+                )}
+
+                {/* Role */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1 font-secondary">
+                    Role
+                  </label>
+                  <span className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 capitalize font-secondary">
+                    {selectedEmployee.role}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => setSelectedEmployee(null)}
+                  className="w-full px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors font-secondary"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

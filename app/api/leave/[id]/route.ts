@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Leave from '@/models/Leave';
 import mongoose from 'mongoose';
+import { sendLeaveStatusNotificationToEmployee } from '@/utils/sendEmail';
+import { format } from 'date-fns';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +32,11 @@ export async function PUT(
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
     }
 
+    // Validate MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+      return NextResponse.json({ error: 'Invalid leave ID' }, { status: 400 });
+    }
+
     await connectDB();
 
     const leave = await Leave.findById(params.id);
@@ -49,7 +56,7 @@ export async function PUT(
       leave.rejectionReason = rejectionReason;
     }
 
-    // Handle balance deduction/restoration
+    // Handle balance deduction/restoration (only when approving/rejecting)
     if (!leave.allottedBy) {
       // This is a leave request (not an allotted leave)
       const allottedLeave = await Leave.findOne({
@@ -61,31 +68,73 @@ export async function PUT(
       if (allottedLeave) {
         const requestedDays = leave.days || 0;
 
-        // Initialize remainingDays if not set
-        if (allottedLeave.remainingDays === undefined || allottedLeave.remainingDays === null) {
-          allottedLeave.remainingDays = allottedLeave.days || 0;
-        }
-
         if (status === 'approved' && previousStatus !== 'approved') {
           // Deduct from balance when approving
-          if (allottedLeave.remainingDays >= requestedDays) {
-            allottedLeave.remainingDays -= requestedDays;
-            await allottedLeave.save();
-          } else {
-            return NextResponse.json(
-              { error: 'Insufficient leave balance' },
-              { status: 400 }
-            );
-          }
+          // Calculate actual remaining days based on approved requests
+          const approvedRequests = await Leave.find({
+            userId: leave.userId,
+            leaveType: leave.leaveType,
+            allottedBy: { $exists: false },
+            status: 'approved',
+            _id: { $ne: leave._id }, // Exclude current request
+          }).lean();
+
+          const totalUsed = approvedRequests.reduce((sum: number, req: any) => sum + (req.days || 0), 0);
+          const actualRemainingDays = Math.max(0, (allottedLeave.days || 0) - totalUsed);
+
+          // Update remainingDays in allotted leave
+          allottedLeave.remainingDays = actualRemainingDays - requestedDays;
+          await allottedLeave.save();
         } else if (status === 'rejected' && previousStatus === 'approved') {
           // Restore balance if rejecting a previously approved leave
-          allottedLeave.remainingDays += requestedDays;
+          // Recalculate remaining days
+          const approvedRequests = await Leave.find({
+            userId: leave.userId,
+            leaveType: leave.leaveType,
+            allottedBy: { $exists: false },
+            status: 'approved',
+            _id: { $ne: leave._id }, // Exclude current request
+          }).lean();
+
+          const totalUsed = approvedRequests.reduce((sum: number, req: any) => sum + (req.days || 0), 0);
+          allottedLeave.remainingDays = Math.max(0, (allottedLeave.days || 0) - totalUsed);
           await allottedLeave.save();
         }
       }
     }
 
     await leave.save();
+    
+    // Populate the leave with related data before returning
+    await leave.populate('userId', 'name email profileImage');
+    await leave.populate('leaveType', 'name description');
+    if (leave.approvedBy) {
+      await leave.populate('approvedBy', 'name email');
+    }
+
+    // Send email notification to employee about approval/rejection
+    try {
+      const user = typeof leave.userId === 'object' && leave.userId ? leave.userId : null;
+      const leaveType = typeof leave.leaveType === 'object' && leave.leaveType ? leave.leaveType : null;
+      const approver = typeof leave.approvedBy === 'object' && leave.approvedBy ? leave.approvedBy : null;
+
+      if (user && leaveType && user.email) {
+        await sendLeaveStatusNotificationToEmployee({
+          employeeName: user.name || 'Employee',
+          employeeEmail: user.email,
+          leaveType: leaveType.name || 'Leave',
+          days: leave.days || 0,
+          startDate: format(new Date(leave.startDate), 'MMM dd, yyyy'),
+          endDate: format(new Date(leave.endDate), 'MMM dd, yyyy'),
+          status: status as 'approved' | 'rejected',
+          rejectionReason: status === 'rejected' ? leave.rejectionReason : undefined,
+          approvedBy: approver ? approver.name : undefined,
+        });
+      }
+    } catch (emailError) {
+      // Log email error but don't fail the request
+      console.error('Error sending leave status notification email:', emailError);
+    }
 
     return NextResponse.json({
       message: `Leave ${status} successfully`,
@@ -108,19 +157,41 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const role = (session.user as any).role;
-
-    if (role !== 'admin' && role !== 'hr') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    // Validate MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+      return NextResponse.json({ error: 'Invalid leave ID' }, { status: 400 });
     }
 
     await connectDB();
 
-    const leave = await Leave.findByIdAndDelete(params.id);
+    const leave = await Leave.findById(params.id);
 
     if (!leave) {
       return NextResponse.json({ error: 'Leave not found' }, { status: 404 });
     }
+
+    const role = (session.user as any).role;
+    const userId = (session.user as any).id;
+
+    // Employees can only delete their own pending leave requests
+    // Admin/HR can delete any leave request
+    if (role === 'employee') {
+      const leaveUserId = typeof leave.userId === 'object' && leave.userId?._id 
+        ? leave.userId._id.toString() 
+        : leave.userId.toString();
+      
+      if (leaveUserId !== userId) {
+        return NextResponse.json({ error: 'You can only delete your own leave requests' }, { status: 403 });
+      }
+
+      if (leave.status !== 'pending') {
+        return NextResponse.json({ error: 'You can only delete pending leave requests' }, { status: 400 });
+      }
+    } else if (role !== 'admin' && role !== 'hr') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    await Leave.findByIdAndDelete(params.id);
 
     return NextResponse.json({
       message: 'Leave deleted successfully',

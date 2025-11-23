@@ -16,12 +16,11 @@ export async function GET(request: NextRequest) {
 
     await connectDB();
 
-    // Get all employees with dateOfBirth
+    // Get all users (employees, admin, hr) with dateOfBirth
     const employees = await User.find({
-      role: 'employee',
       dateOfBirth: { $exists: true, $ne: null },
     })
-      .select('_id name email profileImage dateOfBirth')
+      .select('_id name email profileImage dateOfBirth role')
       .lean();
 
     const today = new Date();

@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Calendar, Clock, User, CheckCircle, X, Trash2 } from 'lucide-react';
+import { Plus, Calendar, Clock, User, CheckCircle, X, Trash2, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/contexts/ToastContext';
 import CircleProgress from './CircleProgress';
 import LoadingDots from './LoadingDots';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
+import Pagination from './Pagination';
+import UserAvatar from './UserAvatar';
 
 interface Leave {
   _id: string;
@@ -57,6 +59,10 @@ export default function EmployeeLeaveView({ initialLeaves, onLeavesUpdated }: Em
     leave: null,
   });
   const [deleting, setDeleting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const [teamMembersOnLeave, setTeamMembersOnLeave] = useState<any[]>([]);
+  const [loadingTeamMembers, setLoadingTeamMembers] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
@@ -66,6 +72,38 @@ export default function EmployeeLeaveView({ initialLeaves, onLeavesUpdated }: Em
   useEffect(() => {
     setLeaves(initialLeaves);
   }, [initialLeaves]);
+
+  // Fetch team members on leave when dates are selected
+  useEffect(() => {
+    const fetchTeamMembersOnLeave = async () => {
+      if (!formData.startDate || !formData.endDate) {
+        setTeamMembersOnLeave([]);
+        return;
+      }
+
+      try {
+        setLoadingTeamMembers(true);
+        const res = await fetch(
+          `/api/leave/team-members-on-leave?startDate=${formData.startDate}&endDate=${formData.endDate}`
+        );
+        const data = await res.json();
+        if (res.ok && data.teamMembersOnLeave) {
+          setTeamMembersOnLeave(data.teamMembersOnLeave);
+        } else {
+          setTeamMembersOnLeave([]);
+        }
+      } catch (err) {
+        console.error('Error fetching team members on leave:', err);
+        setTeamMembersOnLeave([]);
+      } finally {
+        setLoadingTeamMembers(false);
+      }
+    };
+
+    // Debounce the API call
+    const timer = setTimeout(fetchTeamMembersOnLeave, 500);
+    return () => clearTimeout(timer);
+  }, [formData.startDate, formData.endDate]);
 
   const fetchAllottedLeaveTypes = async () => {
     try {
@@ -209,6 +247,20 @@ export default function EmployeeLeaveView({ initialLeaves, onLeavesUpdated }: Em
   const allottedLeaves = leaves.filter((leave) => leave.allottedBy);
   const leaveRequests = leaves.filter((leave) => !leave.allottedBy);
 
+  // Pagination logic for leave requests
+  const paginatedLeaveRequests = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return leaveRequests.slice(startIndex, endIndex);
+  }, [leaveRequests, currentPage]);
+
+  const totalPages = Math.ceil(leaveRequests.length / itemsPerPage);
+
+  // Reset to page 1 when leave requests change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [leaveRequests.length]);
+
   return (
     <div className="space-y-6">
       {/* Header with Request Button */}
@@ -344,7 +396,7 @@ export default function EmployeeLeaveView({ initialLeaves, onLeavesUpdated }: Em
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {leaveRequests.map((leave) => (
+                  {paginatedLeaveRequests.map((leave) => (
                     <motion.tr
                       key={leave._id}
                       initial={{ opacity: 0 }}
@@ -400,6 +452,15 @@ export default function EmployeeLeaveView({ initialLeaves, onLeavesUpdated }: Em
                 </tbody>
               </table>
             </div>
+            {totalPages > 1 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                totalItems={leaveRequests.length}
+                itemsPerPage={itemsPerPage}
+              />
+            )}
           </div>
         )}
       </div>
@@ -592,6 +653,65 @@ export default function EmployeeLeaveView({ initialLeaves, onLeavesUpdated }: Em
                   </motion.div>
                 );
               })()}
+
+              {/* Team Members on Leave */}
+              {formData.startDate && formData.endDate && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="rounded-lg p-3 border border-orange-200/50 bg-orange-50/80 backdrop-blur-sm"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="w-4 h-4 text-orange-600" />
+                    <h3 className="text-xs font-semibold text-gray-800 font-primary">
+                      Team Members on Leave
+                    </h3>
+                  </div>
+                  {loadingTeamMembers ? (
+                    <div className="flex items-center justify-center py-2">
+                      <LoadingDots size="sm" />
+                    </div>
+                  ) : teamMembersOnLeave.length === 0 ? (
+                    <p className="text-xs text-gray-600 font-secondary">
+                      No team members have leave during this period
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {teamMembersOnLeave.map((member) => (
+                        <div
+                          key={member._id}
+                          className="flex items-center gap-2 p-2 bg-white/60 rounded-lg border border-orange-200/30"
+                        >
+                          <UserAvatar
+                            name={member.name}
+                            image={member.profileImage}
+                            size="sm"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-semibold text-gray-800 font-primary truncate">
+                              {member.name}
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 mt-1">
+                              {member.leaves.map((leave: any, idx: number) => (
+                                <span
+                                  key={idx}
+                                  className={`px-1.5 py-0.5 text-[10px] font-medium rounded-full font-secondary ${
+                                    leave.status === 'approved'
+                                      ? 'bg-green-100 text-green-700'
+                                      : 'bg-yellow-100 text-yellow-700'
+                                  }`}
+                                >
+                                  {leave.leaveType} ({format(new Date(leave.startDate), 'MMM dd')} - {format(new Date(leave.endDate), 'MMM dd')})
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              )}
 
               {/* Reason */}
               <div>

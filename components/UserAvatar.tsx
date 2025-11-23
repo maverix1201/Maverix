@@ -35,17 +35,29 @@ export default function UserAvatar({ name, image, size = 'md', className = '' }:
 
   // Show image if provided and no error occurred
   if (image && image.trim() !== '' && !imageError) {
+    // Use regular img tag for data URLs, Next.js Image for regular URLs
+    const isDataUrl = image.startsWith('data:');
+    
     return (
       <div className={`relative ${currentSize.container} rounded-full overflow-hidden border-2 border-primary/20 ${className}`}>
-        <Image
-          src={image}
-          alt={name || 'User'}
-          fill
-          className="object-cover"
-          sizes={currentSize.container}
-          unoptimized
-          onError={() => setImageError(true)}
-        />
+        {isDataUrl ? (
+          <img
+            src={image}
+            alt={name || 'User'}
+            className="w-full h-full object-cover"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <Image
+            src={image}
+            alt={name || 'User'}
+            fill
+            className="object-cover"
+            sizes={currentSize.container}
+            unoptimized
+            onError={() => setImageError(true)}
+          />
+        )}
       </div>
     );
   }

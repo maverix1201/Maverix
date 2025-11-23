@@ -227,8 +227,8 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
         </header>
 
         {/* Mobile Bottom Navigation Bar - Glass Effect */}
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 px-2 pb-2 pt-1">
-          <div className="bg-red-500/10 backdrop-blur-lg rounded-2xl shadow-xl">
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40">
+          <div className="bg-white/10 border border-t border-white backdrop-blur-lg shadow-xl py-1 px-2">
             <div className="overflow-x-auto scrollbar-hide">
               <div className="flex items-center gap-1 px-2 py-1.5 min-w-max">
                 {menu

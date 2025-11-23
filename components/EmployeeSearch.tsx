@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, Mail, Phone, User, Calendar } from 'lucide-react';
 import UserAvatar from './UserAvatar';
@@ -24,6 +24,7 @@ export default function EmployeeSearch() {
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [employeesOnLeaveToday, setEmployeesOnLeaveToday] = useState<string[]>([]);
   const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -64,6 +65,56 @@ export default function EmployeeSearch() {
     const debounceTimer = setTimeout(searchEmployees, 300);
     return () => clearTimeout(debounceTimer);
   }, [searchTerm]);
+
+  // Fetch employees on leave today
+  const fetchEmployeesOnLeave = useCallback(async () => {
+    try {
+      // Add cache-busting to ensure fresh data
+      const res = await fetch('/api/leave/on-leave-today', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
+      const data = await res.json();
+      if (res.ok && data.userIdsOnLeave) {
+        setEmployeesOnLeaveToday(data.userIdsOnLeave);
+      }
+    } catch (err) {
+      console.error('Error fetching employees on leave:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Fetch immediately
+    fetchEmployeesOnLeave();
+
+    // Refresh every 5 seconds to catch status changes quickly
+    const interval = setInterval(fetchEmployeesOnLeave, 5000);
+
+    // Refresh when window comes into focus
+    const handleFocus = () => {
+      fetchEmployeesOnLeave();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    // Listen for custom event to refresh immediately when leave status changes
+    const handleLeaveStatusChange = () => {
+      // Clear state first, then fetch fresh data
+      setEmployeesOnLeaveToday([]);
+      // Small delay to ensure database is updated
+      setTimeout(() => {
+        fetchEmployeesOnLeave();
+      }, 200);
+    };
+    window.addEventListener('leaveStatusChanged', handleLeaveStatusChange);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('leaveStatusChanged', handleLeaveStatusChange);
+    };
+  }, [fetchEmployeesOnLeave]);
 
   return (
     <div className="relative" ref={searchRef}>
@@ -125,9 +176,17 @@ export default function EmployeeSearch() {
                         size="md"
                       />
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-primary font-semibold text-gray-800 truncate">
-                          {employee.name}
-                        </h3>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-sm font-primary font-semibold text-gray-800 truncate">
+                            {employee.name}
+                          </h3>
+                          {employeesOnLeaveToday.includes(employee._id) && (
+                            <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-orange-100 text-orange-800 flex items-center gap-0.5 font-secondary flex-shrink-0">
+                              <Calendar className="w-2.5 h-2.5" />
+                              On Leave
+                            </span>
+                          )}
+                        </div>
                         <div className="space-y-0.5 mt-1">
                           <div className="flex items-center gap-1.5 text-xs text-gray-600 font-secondary">
                             <Mail className="w-3 h-3 flex-shrink-0" />

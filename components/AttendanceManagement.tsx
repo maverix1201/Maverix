@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Clock, Search, Filter, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import UserAvatar from './UserAvatar';
+import Pagination from './Pagination';
 
 interface Attendance {
   _id: string;
@@ -33,6 +34,8 @@ export default function AttendanceManagement({ initialAttendance }: AttendanceMa
   const [filterDateTo, setFilterDateTo] = useState('');
   const [filterClockOut, setFilterClockOut] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const formatTime = (dateString: string) => {
     return format(new Date(dateString), 'hh:mm a');
@@ -105,6 +108,20 @@ export default function AttendanceManagement({ initialAttendance }: AttendanceMa
       return true;
     });
   }, [initialAttendance, searchTerm, filterEmployee, filterStatus, filterDateFrom, filterDateTo, filterClockOut]);
+
+  // Pagination logic
+  const paginatedAttendance = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredAttendance.slice(startIndex, endIndex);
+  }, [filteredAttendance, currentPage]);
+
+  const totalPages = Math.ceil(filteredAttendance.length / itemsPerPage);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterEmployee, filterStatus, filterDateFrom, filterDateTo, filterClockOut]);
 
   const clearFilters = () => {
     setSearchTerm('');
@@ -296,7 +313,7 @@ export default function AttendanceManagement({ initialAttendance }: AttendanceMa
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredAttendance.length === 0 ? (
+              {paginatedAttendance.length === 0 ? (
                 <tr>
                   <td
                     colSpan={showEmployeeColumn ? 6 : 5}
@@ -306,7 +323,7 @@ export default function AttendanceManagement({ initialAttendance }: AttendanceMa
                   </td>
                 </tr>
               ) : (
-                filteredAttendance.map((attendance) => (
+                paginatedAttendance.map((attendance) => (
                   <tr key={attendance._id} className="hover:bg-gray-50">
                     {showEmployeeColumn && attendance.userId && (
                       <td className="px-4 py-3 whitespace-nowrap">
@@ -370,6 +387,15 @@ export default function AttendanceManagement({ initialAttendance }: AttendanceMa
             </tbody>
           </table>
         </div>
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={filteredAttendance.length}
+            itemsPerPage={itemsPerPage}
+          />
+        )}
       </div>
     </div>
   );

@@ -13,7 +13,7 @@ export default async function EmployeeProfilePage() {
 
   return (
     <DashboardLayout role="employee">
-      <div className="p-4 md:p-6">
+      <div className="p-2 md:p-6">
         <Profile />
       </div>
     </DashboardLayout>

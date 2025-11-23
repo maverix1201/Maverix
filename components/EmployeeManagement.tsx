@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Edit, Trash2, Mail, User } from 'lucide-react';
+import { Plus, Edit, Trash2, Mail, User, Calendar } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import UserAvatar from './UserAvatar';
 import LoadingDots from './LoadingDots';
+import Pagination from './Pagination';
 
 interface Employee {
   _id: string;
@@ -41,6 +42,9 @@ export default function EmployeeManagement({ initialEmployees }: EmployeeManagem
     employee: null,
   });
   const [deleting, setDeleting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const [employeesOnLeaveToday, setEmployeesOnLeaveToday] = useState<string[]>([]);
   const toast = useToast();
 
   const handleOpenModal = (employee?: Employee) => {
@@ -147,6 +151,65 @@ export default function EmployeeManagement({ initialEmployees }: EmployeeManagem
     }
   };
 
+  // Fetch employees on leave today
+  const fetchEmployeesOnLeave = async () => {
+    try {
+      // Add cache-busting to ensure fresh data
+      const res = await fetch('/api/leave/on-leave-today', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
+      const data = await res.json();
+      if (res.ok && data.userIdsOnLeave) {
+        setEmployeesOnLeaveToday(data.userIdsOnLeave);
+      }
+    } catch (err) {
+      console.error('Error fetching employees on leave:', err);
+    }
+  };
+
+  useEffect(() => {
+    // Fetch immediately
+    fetchEmployeesOnLeave();
+
+    // Refresh every 5 seconds to catch status changes quickly
+    const interval = setInterval(fetchEmployeesOnLeave, 5000);
+
+    // Refresh when window comes into focus
+    const handleFocus = () => {
+      fetchEmployeesOnLeave();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    // Listen for custom event to refresh immediately when leave status changes
+    const handleLeaveStatusChange = () => {
+      // Clear state first, then fetch fresh data
+      setEmployeesOnLeaveToday([]);
+      // Small delay to ensure database is updated
+      setTimeout(() => {
+        fetchEmployeesOnLeave();
+      }, 200);
+    };
+    window.addEventListener('leaveStatusChanged', handleLeaveStatusChange);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('leaveStatusChanged', handleLeaveStatusChange);
+    };
+  }, []);
+
+  // Pagination logic
+  const paginatedEmployees = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return employees.slice(startIndex, endIndex);
+  }, [employees, currentPage]);
+
+  const totalPages = Math.ceil(employees.length / itemsPerPage);
+
   return (
     <div>
       <div className="bg-white rounded-lg shadow-sm border border-gray-100">
@@ -189,7 +252,7 @@ export default function EmployeeManagement({ initialEmployees }: EmployeeManagem
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {employees.map((employee) => (
+              {paginatedEmployees.map((employee) => (
                 <motion.tr
                   key={employee._id}
                   initial={{ opacity: 0 }}
@@ -203,8 +266,14 @@ export default function EmployeeManagement({ initialEmployees }: EmployeeManagem
                         image={employee.profileImage}
                         size="md"
                       />
-                      <div>
+                      <div className="flex items-center gap-2">
                         <div className="text-sm font-medium text-gray-900 font-secondary">{employee.name}</div>
+                        {employeesOnLeaveToday.includes(employee._id) && (
+                          <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-orange-100 text-orange-800 flex items-center gap-1 font-secondary">
+                            <Calendar className="w-3 h-3" />
+                            On Leave Today
+                          </span>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -270,6 +339,15 @@ export default function EmployeeManagement({ initialEmployees }: EmployeeManagem
             </tbody>
           </table>
         </div>
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={employees.length}
+            itemsPerPage={itemsPerPage}
+          />
+        )}
       </div>
 
       {showModal && (

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Mail, Phone, Crown } from 'lucide-react';
+import { Users, Mail, Phone, Crown, Calendar } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 import UserAvatar from './UserAvatar';
 import LoadingDots from './LoadingDots';
@@ -26,6 +26,7 @@ interface Team {
 export default function EmployeeTeamInfo() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
+  const [employeesOnLeaveToday, setEmployeesOnLeaveToday] = useState<string[]>([]);
   const toast = useToast();
 
   const fetchMyTeams = useCallback(async () => {
@@ -49,6 +50,56 @@ export default function EmployeeTeamInfo() {
   useEffect(() => {
     fetchMyTeams();
   }, [fetchMyTeams]);
+
+  // Fetch employees on leave today
+  const fetchEmployeesOnLeave = useCallback(async () => {
+    try {
+      // Add cache-busting to ensure fresh data
+      const res = await fetch('/api/leave/on-leave-today', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
+      const data = await res.json();
+      if (res.ok && data.userIdsOnLeave) {
+        setEmployeesOnLeaveToday(data.userIdsOnLeave);
+      }
+    } catch (err) {
+      console.error('Error fetching employees on leave:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Fetch immediately
+    fetchEmployeesOnLeave();
+
+    // Refresh every 5 seconds to catch status changes quickly
+    const interval = setInterval(fetchEmployeesOnLeave, 5000);
+
+    // Refresh when window comes into focus
+    const handleFocus = () => {
+      fetchEmployeesOnLeave();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    // Listen for custom event to refresh immediately when leave status changes
+    const handleLeaveStatusChange = () => {
+      // Clear state first, then fetch fresh data
+      setEmployeesOnLeaveToday([]);
+      // Small delay to ensure database is updated
+      setTimeout(() => {
+        fetchEmployeesOnLeave();
+      }, 200);
+    };
+    window.addEventListener('leaveStatusChanged', handleLeaveStatusChange);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('leaveStatusChanged', handleLeaveStatusChange);
+    };
+  }, [fetchEmployeesOnLeave]);
 
   if (loading) {
     return (
@@ -142,9 +193,17 @@ export default function EmployeeTeamInfo() {
                         className="flex-shrink-0"
                       />
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-primary font-semibold text-gray-800 truncate">
-                          {member.name}
-                        </h3>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-sm font-primary font-semibold text-gray-800 truncate">
+                            {member.name}
+                          </h3>
+                          {employeesOnLeaveToday.includes(member._id) && (
+                            <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-orange-100 text-orange-800 flex items-center gap-0.5 font-secondary flex-shrink-0">
+                              <Calendar className="w-2.5 h-2.5" />
+                              On Leave
+                            </span>
+                          )}
+                        </div>
                         <div className="space-y-0.5 mt-0.5">
                           <div className="flex items-center gap-1 text-xs text-gray-600 font-secondary">
                             <Mail className="w-2.5 h-2.5 flex-shrink-0" />

@@ -6,7 +6,9 @@ import { Plus, Check, X, Calendar, Clock, Search, Filter, XCircle, Trash2 } from
 import { format } from 'date-fns';
 import { useToast } from '@/contexts/ToastContext';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
+import RejectLeaveModal from './RejectLeaveModal';
 import UserAvatar from './UserAvatar';
+import Pagination from './Pagination';
 
 interface Leave {
   _id: string;
@@ -79,10 +81,17 @@ export default function LeaveManagement({
   const [filterDateFrom, setFilterDateFrom] = useState<string>('');
   const [filterDateTo, setFilterDateTo] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; leave: Leave | null }>({
     isOpen: false,
     leave: null,
   });
+  const [rejectModal, setRejectModal] = useState<{ isOpen: boolean; leave: Leave | null }>({
+    isOpen: false,
+    leave: null,
+  });
+  const [rejecting, setRejecting] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   // Update leaves when initialLeaves changes
@@ -164,6 +173,12 @@ export default function LeaveManagement({
         );
       }
       toast.success('Leave request approved successfully');
+      
+      // Dispatch custom event to refresh "on leave" badges immediately
+      // Add small delay to ensure database update is complete
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('leaveStatusChanged'));
+      }, 100);
     } catch (err: any) {
       // Revert on error
       setLeaves(previousLeaves);
@@ -171,9 +186,16 @@ export default function LeaveManagement({
     }
   };
 
-  const handleReject = async (id: string) => {
-    const reason = prompt('Enter rejection reason:');
-    if (!reason) return;
+  const handleRejectClick = (leave: Leave) => {
+    setRejectModal({ isOpen: true, leave });
+  };
+
+  const handleRejectConfirm = async (reason: string) => {
+    if (!rejectModal.leave) return;
+
+    const id = rejectModal.leave._id;
+    const isApprovedLeave = rejectModal.leave.status === 'approved';
+    setRejecting(true);
 
     // Optimistic update - update immediately in UI
     const previousLeaves = [...leaves];
@@ -197,6 +219,8 @@ export default function LeaveManagement({
         // Revert on error
         setLeaves(previousLeaves);
         toast.error('Failed to parse server response');
+        setRejecting(false);
+        setRejectModal({ isOpen: false, leave: null });
         return;
       }
 
@@ -204,6 +228,8 @@ export default function LeaveManagement({
         // Revert on error
         setLeaves(previousLeaves);
         toast.error(data.error || 'Failed to reject leave request');
+        setRejecting(false);
+        setRejectModal({ isOpen: false, leave: null });
         return;
       }
 
@@ -215,11 +241,27 @@ export default function LeaveManagement({
           )
         );
       }
-      toast.success('Leave request rejected successfully');
+      
+      const successMessage = isApprovedLeave
+        ? 'Leave rejected successfully. Leave balance has been restored to the employee.'
+        : 'Leave request rejected successfully';
+      toast.success(successMessage);
+      
+      // Dispatch custom event to refresh "on leave" badges immediately
+      // Add small delay to ensure database update is complete
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('leaveStatusChanged'));
+      }, 100);
+      
+      if (onLeaveAdded) onLeaveAdded();
+      setRejecting(false);
+      setRejectModal({ isOpen: false, leave: null });
     } catch (err: any) {
       // Revert on error
       setLeaves(previousLeaves);
       toast.error(err.message || 'An error occurred while rejecting leave request');
+      setRejecting(false);
+      setRejectModal({ isOpen: false, leave: null });
     }
   };
 
@@ -314,6 +356,20 @@ export default function LeaveManagement({
       return true;
     });
   }, [leaves, searchTerm, filterStatus, filterEmployee, filterLeaveType, filterDateFrom, filterDateTo]);
+
+  // Pagination logic
+  const paginatedLeaves = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredLeaves.slice(startIndex, endIndex);
+  }, [filteredLeaves, currentPage]);
+
+  const totalPages = Math.ceil(filteredLeaves.length / itemsPerPage);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterStatus, filterEmployee, filterLeaveType, filterDateFrom, filterDateTo]);
 
   const clearFilters = () => {
     setSearchTerm('');
@@ -514,14 +570,14 @@ export default function LeaveManagement({
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredLeaves.length === 0 ? (
+              {paginatedLeaves.length === 0 ? (
                 <tr>
                   <td colSpan={canApprove ? 7 : 5} className="px-4 py-8 text-center text-gray-500 font-secondary">
                     {hasActiveFilters ? 'No leave requests match your filters' : 'No leave requests found'}
                   </td>
                 </tr>
               ) : (
-                filteredLeaves.map((leave) => (
+                paginatedLeaves.map((leave) => (
                 <motion.tr
                   key={leave._id}
                   initial={{ opacity: 0 }}
@@ -586,13 +642,22 @@ export default function LeaveManagement({
                               <Check className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => handleReject(leave._id)}
+                              onClick={() => handleRejectClick(leave)}
                               className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
                               title="Reject"
                             >
                               <X className="w-4 h-4" />
                             </button>
                           </>
+                        )}
+                        {leave.status === 'approved' && (
+                          <button
+                            onClick={() => handleRejectClick(leave)}
+                            className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
+                            title="Reject Approved Leave (Balance will be restored)"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
                         )}
                         <button
                           onClick={() => handleDeleteClick(leave)}
@@ -610,7 +675,60 @@ export default function LeaveManagement({
             </tbody>
           </table>
         </div>
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={filteredLeaves.length}
+            itemsPerPage={itemsPerPage}
+          />
+        )}
       </div>
+
+      {/* Reject Leave Modal */}
+      <RejectLeaveModal
+        isOpen={rejectModal.isOpen}
+        onClose={() => setRejectModal({ isOpen: false, leave: null })}
+        onConfirm={handleRejectConfirm}
+        title={rejectModal.leave?.status === 'approved' ? 'Reject Approved Leave' : 'Reject Leave Request'}
+        message={
+          rejectModal.leave?.status === 'approved'
+            ? 'Are you sure you want to reject this approved leave? The leave days will be restored to the employee\'s balance.'
+            : 'Are you sure you want to reject this leave request?'
+        }
+        details={
+          rejectModal.leave ? (
+            <div className="space-y-1">
+              <div>
+                <span className="font-semibold">Employee:</span>{' '}
+                {rejectModal.leave.userId?.name || 'N/A'} ({rejectModal.leave.userId?.email || 'N/A'})
+              </div>
+              <div>
+                <span className="font-semibold">Leave Type:</span>{' '}
+                {typeof rejectModal.leave.leaveType === 'object'
+                  ? rejectModal.leave.leaveType?.name
+                  : rejectModal.leave.leaveType}
+              </div>
+              <div>
+                <span className="font-semibold">Dates:</span>{' '}
+                {format(new Date(rejectModal.leave.startDate), 'MMM dd, yyyy')} -{' '}
+                {format(new Date(rejectModal.leave.endDate), 'MMM dd, yyyy')}
+              </div>
+              <div>
+                <span className="font-semibold">Days:</span> {rejectModal.leave.days || 'N/A'}
+              </div>
+              {rejectModal.leave.reason && (
+                <div>
+                  <span className="font-semibold">Reason:</span> {rejectModal.leave.reason}
+                </div>
+              )}
+            </div>
+          ) : null
+        }
+        loading={rejecting}
+        isApprovedLeave={rejectModal.leave?.status === 'approved'}
+      />
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal

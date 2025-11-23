@@ -131,6 +131,8 @@ textarea {
   color: #374151; /* text-gray-700 */
 }
 
+
+
 /* Prevent mobile zoom on input focus - iOS Safari zooms if font-size < 16px */
 @media screen and (max-width: 768px) {
   input[type="text"],

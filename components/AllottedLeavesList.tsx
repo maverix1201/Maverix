@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, Calendar, User, Clock, Edit, Trash2 } from 'lucide-react';
+import { Search, Filter, Calendar, User, Clock, Edit, Trash2, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/contexts/ToastContext';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
@@ -37,23 +37,13 @@ interface AllottedLeavesListProps {
   leaves: Leave[];
   employees: any[];
   onRefresh?: () => void;
+  onEditEmployee?: (employeeId: string, employeeLeaves: Leave[]) => void;
 }
 
-export default function AllottedLeavesList({ leaves, employees, onRefresh }: AllottedLeavesListProps) {
+export default function AllottedLeavesList({ leaves, employees, onRefresh, onEditEmployee }: AllottedLeavesListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEmployee, setFilterEmployee] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [editingLeave, setEditingLeave] = useState<Leave | null>(null);
-  const [editFormData, setEditFormData] = useState({
-    days: '',
-    startDate: '',
-    endDate: '',
-    reason: '',
-    carryForward: false,
-    leaveType: '',
-  });
-  const [loading, setLoading] = useState(false);
-  const [leaveTypes, setLeaveTypes] = useState<any[]>([]);
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; leave: Leave | null }>({
     isOpen: false,
     leave: null,
@@ -61,35 +51,55 @@ export default function AllottedLeavesList({ leaves, employees, onRefresh }: All
   const [deleting, setDeleting] = useState(false);
   const toast = useToast();
 
-  // Fetch leave types on mount
-  useEffect(() => {
-    fetch('/api/leave-types')
-      .then((res) => res.json())
-      .then((data) => setLeaveTypes(data.leaveTypes || []))
-      .catch((err) => console.error('Error fetching leave types:', err));
-  }, []);
-
   // Filter allotted leaves (only leaves that were allotted)
   const allottedLeaves = useMemo(() => {
     return leaves.filter((leave) => leave.allottedBy);
   }, [leaves]);
 
-  // Apply search and filters
-  const filteredLeaves = useMemo(() => {
-    return allottedLeaves.filter((leave) => {
-      const matchesSearch =
-        leave.userId?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        leave.userId?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (typeof leave.leaveType === 'object' ? leave.leaveType?.name : leave.leaveType)
-          ?.toLowerCase()
-          .includes(searchTerm.toLowerCase());
-
-      const matchesEmployee = !filterEmployee || leave.userId?._id === filterEmployee;
-      const matchesStatus = filterStatus === 'all' || leave.status === filterStatus;
-
-      return matchesSearch && matchesEmployee && matchesStatus;
+  // Group leaves by employee
+  const groupedLeaves = useMemo(() => {
+    const grouped: { [key: string]: Leave[] } = {};
+    allottedLeaves.forEach((leave) => {
+      const userId = leave.userId?._id || '';
+      if (!grouped[userId]) {
+        grouped[userId] = [];
+      }
+      grouped[userId].push(leave);
     });
-  }, [allottedLeaves, searchTerm, filterEmployee, filterStatus]);
+    return grouped;
+  }, [allottedLeaves]);
+
+  // Apply search and filters
+  const filteredGroupedLeaves = useMemo(() => {
+    const filtered: { [key: string]: Leave[] } = {};
+    
+    Object.keys(groupedLeaves).forEach((userId) => {
+      const employeeLeaves = groupedLeaves[userId];
+      const firstLeave = employeeLeaves[0];
+      const employee = employees.find((e) => e._id === userId);
+      
+      const matchesSearch =
+        !searchTerm ||
+        employee?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        employee?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        employeeLeaves.some((leave) =>
+          (typeof leave.leaveType === 'object' ? leave.leaveType?.name : leave.leaveType)
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase())
+        );
+
+      const matchesEmployee = !filterEmployee || userId === filterEmployee;
+      const matchesStatus =
+        filterStatus === 'all' ||
+        employeeLeaves.some((leave) => leave.status === filterStatus);
+
+      if (matchesSearch && matchesEmployee && matchesStatus) {
+        filtered[userId] = employeeLeaves;
+      }
+    });
+
+    return filtered;
+  }, [groupedLeaves, searchTerm, filterEmployee, filterStatus, employees]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -138,48 +148,10 @@ export default function AllottedLeavesList({ leaves, employees, onRefresh }: All
     }
   };
 
-  const handleEdit = (leave: Leave) => {
-    setEditingLeave(leave);
-    setEditFormData({
-      days: leave.days?.toString() || '',
-      startDate: format(new Date(leave.startDate), 'yyyy-MM-dd'),
-      endDate: format(new Date(leave.endDate), 'yyyy-MM-dd'),
-      reason: leave.reason || '',
-      carryForward: leave.carryForward || false,
-      leaveType: typeof leave.leaveType === 'object' ? leave.leaveType._id : leave.leaveType,
-    });
-  };
-
-  const handleUpdateLeave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingLeave) return;
-
-    setLoading(true);
-
-    try {
-      const res = await fetch(`/api/leave/${editingLeave._id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editFormData),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        toast.error(data.error || 'Failed to update leave');
-        setLoading(false);
-        return;
-      }
-
-      toast.success('Leave updated successfully');
-      setEditingLeave(null);
-      if (onRefresh) {
-        onRefresh();
-      }
-      setLoading(false);
-    } catch (err: any) {
-      toast.error(err.message || 'An error occurred');
-      setLoading(false);
+  const handleEditEmployee = (userId: string) => {
+    const employeeLeaves = filteredGroupedLeaves[userId] || [];
+    if (onEditEmployee) {
+      onEditEmployee(userId, employeeLeaves);
     }
   };
 
@@ -230,249 +202,81 @@ export default function AllottedLeavesList({ leaves, employees, onRefresh }: All
         </div>
       </div>
 
-      {/* Leaves List */}
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase font-primary">
-                Employee
-              </th>
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase font-primary">
-                Leave Type
-              </th>
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase font-primary">
-                Days
-              </th>
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase font-primary">
-                Dates
-              </th>
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase font-primary">
-                Reason
-              </th>
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase font-primary">
-                Status
-              </th>
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase font-primary">
-                Allotted By
-              </th>
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase font-primary">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredLeaves.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-500 font-secondary">
-                  No allotted leaves found
-                </td>
-              </tr>
-            ) : (
-              filteredLeaves.map((leave) => (
-                <motion.tr
-                  key={leave._id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="hover:bg-gray-50"
-                >
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
-                      <UserAvatar
-                        name={leave.userId?.name}
-                        image={(leave.userId as any)?.profileImage}
-                        size="md"
-                      />
-                      <div>
-                        <div className="text-sm font-medium text-gray-900 font-secondary">
-                          {leave.userId?.name || 'N/A'}
-                        </div>
-                        <div className="text-xs text-gray-500 font-secondary">{leave.userId?.email || 'N/A'}</div>
+      {/* Grouped Leaves List */}
+      <div className="p-4 space-y-3">
+        {Object.keys(filteredGroupedLeaves).length === 0 ? (
+          <div className="text-center py-12 text-gray-500 font-secondary">
+            No allotted leaves found
+          </div>
+        ) : (
+          Object.keys(filteredGroupedLeaves).map((userId) => {
+            const employeeLeaves = filteredGroupedLeaves[userId];
+            const firstLeave = employeeLeaves[0];
+            const employee = employees.find((e) => e._id === userId) || firstLeave.userId;
+
+            return (
+              <motion.div
+                key={userId}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="border border-gray-200 rounded-lg p-3 hover:border-primary/50 transition-colors"
+              >
+                {/* Employee Header */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <UserAvatar
+                      name={employee?.name || firstLeave.userId?.name}
+                      image={(employee as any)?.profileImage || (firstLeave.userId as any)?.profileImage}
+                      size="md"
+                    />
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900 font-primary">
+                        {employee?.name || firstLeave.userId?.name || 'N/A'}
+                      </div>
+                      <div className="text-xs text-gray-500 font-secondary">
+                        {employee?.email || firstLeave.userId?.email || 'N/A'}
                       </div>
                     </div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800 capitalize font-secondary">
-                      {typeof leave.leaveType === 'object' ? leave.leaveType?.name : leave.leaveType}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 font-secondary">
-                      {leave.days || 'N/A'} {leave.days === 1 ? 'day' : 'days'}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 font-secondary">
-                      {format(new Date(leave.startDate), 'MMM dd, yyyy')} -{' '}
-                      {format(new Date(leave.endDate), 'MMM dd, yyyy')}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="text-sm text-gray-900 max-w-xs truncate font-secondary">{leave.reason}</div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-0.5 text-xs font-medium rounded-full font-secondary ${getStatusColor(
-                        leave.status
-                      )}`}
+                  </div>
+                  <button
+                    onClick={() => handleEditEmployee(userId)}
+                    className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors font-secondary"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                    Edit
+                  </button>
+                </div>
+
+                {/* Leave Types Grid */}
+                <div className="flex flex-wrap gap-2">
+                  {employeeLeaves.map((leave) => (
+                    <motion.div
+                      key={leave._id}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="group relative bg-gray-50 rounded-lg px-2.5 py-1.5 border border-gray-200 hover:border-primary/30 transition-colors flex items-center gap-2"
                     >
-                      {leave.status}
-                    </span>
-                    {leave.carryForward && (
-                      <div className="text-xs text-primary mt-1 font-secondary">Carried Forward</div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 font-secondary">
-                      {leave.allottedBy?.name || 'N/A'}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleEdit(leave)}
-                        className="p-1.5 text-primary hover:bg-primary-50 rounded transition-colors"
-                        title="Edit"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
+                      <span className="text-xs font-medium text-gray-800 capitalize font-secondary">
+                        {typeof leave.leaveType === 'object' ? leave.leaveType?.name : leave.leaveType}
+                      </span>
+                      <span className="text-xs font-semibold text-primary font-primary">
+                        {leave.days || 'N/A'} {leave.days === 1 ? 'day' : 'days'}
+                      </span>
                       <button
                         onClick={() => handleDeleteClick(leave)}
-                        className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                        className="opacity-0 group-hover:opacity-100 p-0.5 text-red-600 hover:bg-red-50 rounded transition-all"
                         title="Delete"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <X className="w-3 h-3" />
                       </button>
-                    </div>
-                  </td>
-                </motion.tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Edit Modal */}
-      {editingLeave && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-lg shadow-xl p-5 w-full max-w-md"
-          >
-            <h2 className="text-xl font-primary font-bold text-gray-800 mb-4">Edit Allotted Leave</h2>
-
-            <form onSubmit={handleUpdateLeave} className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5 font-secondary">
-                  Leave Type
-                </label>
-                <select
-                  value={editFormData.leaveType}
-                  onChange={(e) => setEditFormData({ ...editFormData, leaveType: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-white"
-                >
-                  {leaveTypes.map((type) => (
-                    <option key={type._id} value={type._id}>
-                      {type.name}
-                    </option>
+                    </motion.div>
                   ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5 font-secondary">
-                  Days
-                </label>
-                <input
-                  type="number"
-                  value={editFormData.days}
-                  onChange={(e) => setEditFormData({ ...editFormData, days: e.target.value })}
-                  required
-                  min="1"
-                  className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5 font-secondary">
-                  Start Date
-                </label>
-                <input
-                  type="date"
-                  value={editFormData.startDate}
-                  onChange={(e) => setEditFormData({ ...editFormData, startDate: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5 font-secondary">
-                  End Date
-                </label>
-                <input
-                  type="date"
-                  value={editFormData.endDate}
-                  onChange={(e) => setEditFormData({ ...editFormData, endDate: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5 font-secondary">
-                  Reason
-                </label>
-                <textarea
-                  value={editFormData.reason}
-                  onChange={(e) => setEditFormData({ ...editFormData, reason: e.target.value })}
-                  rows={3}
-                  className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-white"
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  id="carryForwardEdit"
-                  type="checkbox"
-                  checked={editFormData.carryForward}
-                  onChange={(e) => setEditFormData({ ...editFormData, carryForward: e.target.checked })}
-                  className="h-4 w-4 text-primary rounded border-gray-300 focus:ring-primary"
-                />
-                <label htmlFor="carryForwardEdit" className="text-sm font-medium text-gray-700 font-secondary">
-                  Carry forward to next year
-                </label>
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingLeave(null)}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 px-3 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 font-secondary flex items-center justify-center gap-2"
-                >
-                  {loading ? (
-                    <>
-                      <LoadingDots size="sm" color="white" />
-                      <span>Updating...</span>
-                    </>
-                  ) : (
-                    'Update Leave'
-                  )}
-                </button>
-              </div>
-            </form>
-          </motion.div>
-        </div>
-      )}
+                </div>
+              </motion.div>
+            );
+          })
+        )}
+      </div>
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal
@@ -502,14 +306,6 @@ export default function AllottedLeavesList({ leaves, employees, onRefresh }: All
                 {format(new Date(deleteModal.leave.startDate), 'MMM dd, yyyy')} -{' '}
                 {format(new Date(deleteModal.leave.endDate), 'MMM dd, yyyy')}
               </div>
-              <div>
-                <span className="font-semibold">Reason:</span> {deleteModal.leave.reason || 'N/A'}
-              </div>
-              {deleteModal.leave.carryForward && (
-                <div>
-                  <span className="font-semibold">Carry Forward:</span> Yes
-                </div>
-              )}
             </div>
           ) : null
         }
@@ -518,4 +314,3 @@ export default function AllottedLeavesList({ leaves, employees, onRefresh }: All
     </div>
   );
 }
-

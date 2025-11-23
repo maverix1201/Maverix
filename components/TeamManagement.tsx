@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Edit, Trash2, Users, UserCheck, Search, X, ChevronDown, Check } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import UserAvatar from './UserAvatar';
 import LoadingDots from './LoadingDots';
+import Pagination from './Pagination';
 
 interface Employee {
   _id: string;
@@ -50,6 +51,8 @@ export default function TeamManagement() {
   const [deleting, setDeleting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -293,11 +296,27 @@ export default function TeamManagement() {
 
   const selectedLeader = employees.find((emp) => emp._id === formData.leader);
 
-  const filteredTeams = teams.filter((team) =>
-    team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    team.leader.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    team.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredTeams = useMemo(() => {
+    return teams.filter((team) =>
+      team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      team.leader.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      team.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [teams, searchTerm]);
+
+  // Pagination logic
+  const paginatedTeams = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredTeams.slice(startIndex, endIndex);
+  }, [filteredTeams, currentPage]);
+
+  const totalPages = Math.ceil(filteredTeams.length / itemsPerPage);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   return (
     <div className="space-y-4">
@@ -343,8 +362,9 @@ export default function TeamManagement() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredTeams.map((team) => (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {paginatedTeams.map((team) => (
             <motion.div
               key={team._id}
               initial={{ opacity: 0, scale: 0.9 }}
@@ -428,7 +448,19 @@ export default function TeamManagement() {
               )}
             </motion.div>
           ))}
-        </div>
+          </div>
+          {totalPages > 1 && (
+            <div className="mt-4">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                totalItems={filteredTeams.length}
+                itemsPerPage={itemsPerPage}
+              />
+            </div>
+          )}
+        </>
       )}
 
       {/* Create/Edit Modal with Glass Effect */}

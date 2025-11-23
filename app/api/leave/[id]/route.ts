@@ -48,15 +48,8 @@ export async function PUT(
     // Store previous status BEFORE updating
     const previousStatus = leave.status;
 
-    leave.status = status;
-    leave.approvedBy = (session.user as any).id;
-    leave.approvedAt = new Date();
-
-    if (status === 'rejected' && rejectionReason) {
-      leave.rejectionReason = rejectionReason;
-    }
-
-    // Handle balance deduction/restoration (only when approving/rejecting)
+    // Handle balance deduction/restoration BEFORE updating status
+    // This must be done before the status change to calculate correctly
     if (!leave.allottedBy) {
       // This is a leave request (not an allotted leave)
       const allottedLeave = await Leave.findOne({
@@ -87,7 +80,7 @@ export async function PUT(
           await allottedLeave.save();
         } else if (status === 'rejected' && previousStatus === 'approved') {
           // Restore balance if rejecting a previously approved leave
-          // Recalculate remaining days
+          // Recalculate remaining days (excluding this leave since it will be rejected)
           const approvedRequests = await Leave.find({
             userId: leave.userId,
             leaveType: leave.leaveType,
@@ -103,31 +96,74 @@ export async function PUT(
       }
     }
 
-    await leave.save();
+    // Prepare update object
+    const updateData: any = {
+      status: status,
+      approvedBy: (session.user as any).id,
+      approvedAt: new Date(),
+    };
+
+    if (status === 'rejected' && rejectionReason) {
+      updateData.rejectionReason = rejectionReason;
+    } else if (status === 'approved') {
+      // Clear rejection reason if approving
+      updateData.rejectionReason = null;
+    }
+
+    // Use findByIdAndUpdate for reliable status update
+    const updatedLeave = await Leave.findByIdAndUpdate(
+      params.id,
+      updateData,
+      { 
+        new: true, // Return updated document
+        runValidators: true, // Run schema validators
+        overwrite: false, // Don't overwrite entire document
+      }
+    );
+
+    if (!updatedLeave) {
+      return NextResponse.json({ error: 'Leave not found after update' }, { status: 404 });
+    }
+
+    // Verify the status was actually updated
+    if (updatedLeave.status !== status) {
+      console.error(`Status update failed: Expected ${status}, got ${updatedLeave.status}. Retrying...`);
+      // Retry with explicit status update
+      const retryUpdate = await Leave.findByIdAndUpdate(
+        params.id,
+        { $set: { status: status } },
+        { new: true, runValidators: true }
+      );
+      if (retryUpdate && retryUpdate.status !== status) {
+        return NextResponse.json({ 
+          error: `Failed to update leave status. Expected ${status} but got ${retryUpdate.status}` 
+        }, { status: 500 });
+      }
+    }
     
     // Populate the leave with related data before returning
-    await leave.populate('userId', 'name email profileImage');
-    await leave.populate('leaveType', 'name description');
-    if (leave.approvedBy) {
-      await leave.populate('approvedBy', 'name email');
+    await updatedLeave.populate('userId', 'name email profileImage');
+    await updatedLeave.populate('leaveType', 'name description');
+    if (updatedLeave.approvedBy) {
+      await updatedLeave.populate('approvedBy', 'name email');
     }
 
     // Send email notification to employee about approval/rejection
     try {
-      const user = typeof leave.userId === 'object' && leave.userId && 'email' in leave.userId ? leave.userId as any : null;
-      const leaveType = typeof leave.leaveType === 'object' && leave.leaveType && 'name' in leave.leaveType ? leave.leaveType as any : null;
-      const approver = typeof leave.approvedBy === 'object' && leave.approvedBy && 'name' in leave.approvedBy ? leave.approvedBy as any : null;
+      const user = typeof updatedLeave.userId === 'object' && updatedLeave.userId && 'email' in updatedLeave.userId ? updatedLeave.userId as any : null;
+      const leaveType = typeof updatedLeave.leaveType === 'object' && updatedLeave.leaveType && 'name' in updatedLeave.leaveType ? updatedLeave.leaveType as any : null;
+      const approver = typeof updatedLeave.approvedBy === 'object' && updatedLeave.approvedBy && 'name' in updatedLeave.approvedBy ? updatedLeave.approvedBy as any : null;
 
       if (user && leaveType && 'email' in user && user.email) {
         await sendLeaveStatusNotificationToEmployee({
           employeeName: (user.name as string) || 'Employee',
           employeeEmail: user.email as string,
           leaveType: (leaveType.name as string) || 'Leave',
-          days: leave.days || 0,
-          startDate: format(new Date(leave.startDate), 'MMM dd, yyyy'),
-          endDate: format(new Date(leave.endDate), 'MMM dd, yyyy'),
+          days: updatedLeave.days || 0,
+          startDate: format(new Date(updatedLeave.startDate), 'MMM dd, yyyy'),
+          endDate: format(new Date(updatedLeave.endDate), 'MMM dd, yyyy'),
           status: status as 'approved' | 'rejected',
-          rejectionReason: status === 'rejected' ? leave.rejectionReason : undefined,
+          rejectionReason: status === 'rejected' ? updatedLeave.rejectionReason : undefined,
           approvedBy: approver ? (approver.name as string) : undefined,
         });
       }
@@ -138,7 +174,7 @@ export async function PUT(
 
     return NextResponse.json({
       message: `Leave ${status} successfully`,
-      leave,
+      leave: updatedLeave,
     });
   } catch (error: any) {
     console.error('Update leave error:', error);

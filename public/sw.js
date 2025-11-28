@@ -1,7 +1,7 @@
 // Service Worker for MM HRM PWA
 // Version: 1.0.0 - Auto-incremented on build
 
-const CACHE_NAME = 'mm-hrm-v1.0.0';
+const CACHE_NAME = 'mm-hrm-v1.0.1'; // Updated to fix iOS redirect issue
 const RUNTIME_CACHE = 'mm-hrm-runtime-v1.0.0';
 const OFFLINE_PAGE = '/offline.html';
 
@@ -76,6 +76,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // CRITICAL: For navigation requests, always use network-first to avoid redirect issues
+  // iOS Safari doesn't allow service workers to serve responses with redirects
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      networkFirstForNavigation(request)
+    );
+    return;
+  }
+
   // Skip API routes that need fresh data (but cache some GET APIs)
   if (url.pathname.startsWith('/api/')) {
     // Cache some API responses for offline use
@@ -92,13 +101,59 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For static assets and pages, use cache-first strategy
+  // For static assets (images, CSS, JS), use cache-first strategy
   event.respondWith(
     cacheFirstStrategy(request)
   );
 });
 
-// Cache-first strategy: Check cache first, then network
+// Network-first for navigation requests (to avoid redirect issues on iOS)
+async function networkFirstForNavigation(request) {
+  try {
+    // Always try network first for navigation requests
+    const networkResponse = await fetch(request);
+    
+    // CRITICAL: Never cache redirect responses (iOS Safari limitation)
+    // Redirect status codes: 301, 302, 307, 308
+    const isRedirect = networkResponse.status >= 300 && networkResponse.status < 400;
+    
+    if (isRedirect) {
+      // Don't cache redirects, just return them
+      return networkResponse;
+    }
+    
+    // Only cache successful non-redirect responses
+    if (networkResponse && networkResponse.status === 200) {
+      const cache = await caches.open(RUNTIME_CACHE);
+      // Clone before caching
+      cache.put(request, networkResponse.clone());
+    }
+    
+    return networkResponse;
+  } catch (error) {
+    // Network failed, try cache (but only for non-redirect responses)
+    const cache = await caches.open(RUNTIME_CACHE);
+    const cachedResponse = await cache.match(request);
+    
+    if (cachedResponse) {
+      // Double-check it's not a redirect
+      if (cachedResponse.status < 300 || cachedResponse.status >= 400) {
+        return cachedResponse;
+      }
+    }
+    
+    // If cache fails or contains redirect, return offline page
+    const staticCache = await caches.open(CACHE_NAME);
+    const offlinePage = await staticCache.match(OFFLINE_PAGE);
+    if (offlinePage) {
+      return offlinePage;
+    }
+    
+    throw error;
+  }
+}
+
+// Cache-first strategy: Check cache first, then network (for static assets only)
 async function cacheFirstStrategy(request) {
   try {
     const cache = await caches.open(CACHE_NAME);
@@ -113,8 +168,10 @@ async function cacheFirstStrategy(request) {
     try {
       const networkResponse = await fetch(request);
       
-      // Cache successful responses
-      if (networkResponse && networkResponse.status === 200) {
+      // Only cache successful, non-redirect responses
+      const isRedirect = networkResponse.status >= 300 && networkResponse.status < 400;
+      
+      if (networkResponse && networkResponse.status === 200 && !isRedirect) {
         const cache = await caches.open(RUNTIME_CACHE);
         cache.put(request, networkResponse.clone());
       }
@@ -145,13 +202,16 @@ async function cacheFirstStrategy(request) {
   }
 }
 
-// Network-first strategy: Try network first, then cache
+// Network-first strategy: Try network first, then cache (for API routes)
 async function networkFirstStrategy(request) {
   try {
     const networkResponse = await fetch(request);
     
-    // Cache successful responses
-    if (networkResponse && networkResponse.status === 200) {
+    // CRITICAL: Never cache redirect responses (iOS Safari limitation)
+    const isRedirect = networkResponse.status >= 300 && networkResponse.status < 400;
+    
+    // Only cache successful, non-redirect responses
+    if (networkResponse && networkResponse.status === 200 && !isRedirect) {
       const cache = await caches.open(RUNTIME_CACHE);
       cache.put(request, networkResponse.clone());
     }
@@ -163,7 +223,10 @@ async function networkFirstStrategy(request) {
     const cachedResponse = await cache.match(request);
     
     if (cachedResponse) {
-      return cachedResponse;
+      // Double-check it's not a redirect
+      if (cachedResponse.status < 300 || cachedResponse.status >= 400) {
+        return cachedResponse;
+      }
     }
     
     // If it's a navigation request and cache fails, return offline page

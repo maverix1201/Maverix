@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, Suspense, useEffect } from 'react';
-import { signIn, useSession } from 'next-auth/react';
+import { useState, Suspense, useEffect, useRef } from 'react';
+import { signIn, useSession, getSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Mail, Lock, LogIn, Eye, EyeOff } from 'lucide-react';
@@ -11,42 +11,42 @@ import Logo from '@/components/Logo';
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const redirectingRef = useRef(false);
 
   // Handle redirect after successful login
   useEffect(() => {
-    if (status === 'authenticated' && session?.user) {
+    if (status === 'authenticated' && session?.user && !redirectingRef.current) {
+      redirectingRef.current = true;
       const role = (session.user as any)?.role;
       const approved = (session.user as any)?.approved;
 
       if (!role) {
-        router.push('/');
-        router.refresh();
+        window.location.href = '/';
         return;
       }
 
       // Redirect employees to waiting page only if explicitly not approved (false)
       if (role === 'employee' && approved === false) {
-        router.push('/employee/waiting');
-        router.refresh();
+        window.location.href = '/employee/waiting';
         return;
       }
 
       const from = searchParams.get('from') || `/${role}`;
-      router.push(from);
-      router.refresh();
+      window.location.href = from;
     }
-  }, [session, status, router, searchParams]);
+  }, [session, status, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+    redirectingRef.current = false;
 
     try {
       const result = await signIn('credentials', {
@@ -61,12 +61,52 @@ function LoginForm() {
         return;
       }
 
-      // If signIn succeeded, the useSession hook will automatically update
-      // and the useEffect above will handle the redirect
-      // Just wait a moment for the session to be established
-      setLoading(false);
-      
-      // The redirect will be handled by useEffect when session becomes available
+      // If signIn succeeded, manually refresh session and wait for it
+      // This is more reliable in production than relying on automatic updates
+      let sessionRetries = 8;
+      let sessionData = null;
+
+      while (sessionRetries > 0) {
+        try {
+          // Wait a bit for session to be established
+          await new Promise(resolve => setTimeout(resolve, 400));
+          
+          // Update session to trigger refresh
+          await update();
+          
+          // Try to get session
+          sessionData = await getSession();
+          
+          if (sessionData?.user) {
+            const role = (sessionData.user as any)?.role;
+            const approved = (sessionData.user as any)?.approved;
+
+            if (!role) {
+              window.location.href = '/';
+              return;
+            }
+
+            // Redirect employees to waiting page only if explicitly not approved (false)
+            if (role === 'employee' && approved === false) {
+              window.location.href = '/employee/waiting';
+              return;
+            }
+
+            const from = searchParams.get('from') || `/${role}`;
+            window.location.href = from;
+            return;
+          }
+        } catch (sessionError) {
+          console.error('Session fetch error:', sessionError);
+        }
+        
+        sessionRetries--;
+      }
+
+      // If we still don't have a session after retries, use fallback redirect
+      // This ensures the user isn't stuck on the login page
+      const from = searchParams.get('from') || '/';
+      window.location.href = from;
     } catch (err: any) {
       console.error('Login error:', err);
       setError(err.message || 'An error occurred during login. Please try again.');

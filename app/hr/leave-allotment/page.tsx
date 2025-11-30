@@ -6,8 +6,6 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { Plus, X, Users, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/contexts/ToastContext';
-import AllottedLeavesList from '@/components/AllottedLeavesList';
-import LoadingDots from '@/components/LoadingDots';
 
 interface LeaveType {
   _id: string;
@@ -28,40 +26,11 @@ interface SelectedLeaveType {
   days: string;
 }
 
-interface AllottedLeave {
-  _id: string;
-  userId: {
-    _id: string;
-    name: string;
-    email: string;
-    profileImage?: string;
-  };
-  leaveType: {
-    _id: string;
-    name: string;
-    description?: string;
-  };
-  startDate: string;
-  endDate: string;
-  days: number;
-  reason: string;
-  status: 'pending' | 'approved' | 'rejected';
-  allottedBy?: {
-    _id: string;
-    name: string;
-    email?: string;
-    profileImage?: string;
-  };
-  carryForward?: boolean;
-}
-
 export default function HRLeaveAllotmentPage() {
   const { data: session } = useSession();
   const toast = useToast();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
-  const [allottedLeaves, setAllottedLeaves] = useState<AllottedLeave[]>([]);
-  const [loadingLeaves, setLoadingLeaves] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
@@ -76,26 +45,6 @@ export default function HRLeaveAllotmentPage() {
   useEffect(() => {
     fetchEmployees();
     fetchLeaveTypes();
-    fetchAllottedLeaves();
-  }, []);
-
-  // Listen for leave allotment updates from other pages (admin)
-  useEffect(() => {
-    const handleLeaveAllotmentUpdate = () => {
-      fetchAllottedLeaves();
-    };
-
-    window.addEventListener('leaveAllotmentUpdated', handleLeaveAllotmentUpdate);
-    
-    // Also refresh periodically to catch updates from other tabs/windows
-    const interval = setInterval(() => {
-      fetchAllottedLeaves();
-    }, 10000); // Refresh every 10 seconds
-    
-    return () => {
-      window.removeEventListener('leaveAllotmentUpdated', handleLeaveAllotmentUpdate);
-      clearInterval(interval);
-    };
   }, []);
 
   // Close dropdowns when clicking outside
@@ -125,8 +74,7 @@ export default function HRLeaveAllotmentPage() {
     try {
       const res = await fetch('/api/users');
       const data = await res.json();
-      // Include both employees and HR users (exclude only admin) - same as admin page
-      setEmployees(data.users?.filter((u: any) => u.role !== 'admin') || []);
+      setEmployees(data.users?.filter((u: any) => u.role === 'employee') || []);
     } catch (err) {
       console.error('Error fetching employees:', err);
     }
@@ -139,24 +87,6 @@ export default function HRLeaveAllotmentPage() {
       setLeaveTypes(data.leaveTypes || []);
     } catch (err) {
       console.error('Error fetching leave types:', err);
-    }
-  };
-
-  const fetchAllottedLeaves = async () => {
-    try {
-      setLoadingLeaves(true);
-      // Fetch all leaves (including those allotted by admin) using ?all=true parameter
-      const res = await fetch('/api/leave?all=true');
-      const data = await res.json();
-      if (res.ok && data.leaves) {
-        // Filter to show only allotted leaves (leaves with allottedBy)
-        const allotted = data.leaves.filter((leave: any) => leave.allottedBy);
-        setAllottedLeaves(allotted);
-      }
-    } catch (err) {
-      console.error('Error fetching allotted leaves:', err);
-    } finally {
-      setLoadingLeaves(false);
     }
   };
 
@@ -262,16 +192,17 @@ export default function HRLeaveAllotmentPage() {
       setSearchEmployee('');
       setSearchLeaveType('');
       setLoading(false);
-      
-      // Refresh allotted leaves list after successful allotment
-      fetchAllottedLeaves();
-      
-      // Dispatch event to sync other pages (admin)
-      window.dispatchEvent(new CustomEvent('leaveAllotmentUpdated'));
     } catch (err: any) {
       toast.error(err.message || 'An error occurred');
       setLoading(false);
     }
+  };
+
+  const getSelectedEmployeeNames = () => {
+    return selectedEmployees
+      .map((id) => employees.find((e) => e._id === id)?.name)
+      .filter(Boolean)
+      .join(', ');
   };
 
   return (
@@ -517,53 +448,6 @@ export default function HRLeaveAllotmentPage() {
             </motion.div>
           </div>
         )}
-
-        {/* Allotted Leaves List */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100">
-          <div className="p-4 border-b border-gray-200">
-            <h2 className="text-lg font-primary font-semibold text-gray-800">Allotted Leaves</h2>
-            <p className="text-sm text-gray-600 mt-0.5 font-secondary">View and manage all allotted leaves</p>
-          </div>
-          <div className="p-4">
-            {loadingLeaves ? (
-              <div className="flex items-center justify-center py-12">
-                <LoadingDots size="lg" />
-              </div>
-            ) : (
-              <AllottedLeavesList
-                leaves={allottedLeaves}
-                employees={employees}
-                onRefresh={() => {
-                  fetchAllottedLeaves();
-                  window.dispatchEvent(new CustomEvent('leaveAllotmentUpdated'));
-                }}
-                onEditEmployee={(employeeId, employeeLeaves) => {
-                  // Prevent HR from editing their own allotted leaves
-                  const currentUserId = (session?.user as any)?.id;
-                  if (employeeId === currentUserId) {
-                    toast.error('HR users cannot edit their own allotted leaves. Please contact an Admin.');
-                    return;
-                  }
-                  
-                  // Handle edit - pre-fill modal with employee's leaves
-                  const employee = employees.find((e) => e._id === employeeId);
-                  if (employee) {
-                    setSelectedEmployees([employeeId]);
-                    const preSelectedLeaveTypes = employeeLeaves.map((leave: any) => ({
-                      leaveTypeId: typeof leave.leaveType === 'object' ? leave.leaveType._id : leave.leaveType,
-                      leaveTypeName: typeof leave.leaveType === 'object' ? leave.leaveType.name : leave.leaveType,
-                      days: leave.days?.toString() || '',
-                    }));
-                    setSelectedLeaveTypes(preSelectedLeaveTypes);
-                    setShowModal(true);
-                  }
-                }}
-                currentUserId={(session?.user as any)?.id}
-                currentUserRole="hr"
-              />
-            )}
-          </div>
-        </div>
       </div>
     </DashboardLayout>
   );

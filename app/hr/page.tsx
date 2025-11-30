@@ -1,32 +1,24 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import TimeTrackingWidget from '@/components/TimeTrackingWidget';
-import { Calendar, Clock, Users, CalendarX } from 'lucide-react';
+import { Calendar, Clock, DollarSign, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useEffect, useState, useCallback } from 'react';
 import UserAvatar from '@/components/UserAvatar';
 import LoadingDots from '@/components/LoadingDots';
 import AnnouncementManagement from '@/components/AnnouncementManagement';
-import NotClockedInModal from '@/components/NotClockedInModal';
 
 export default function HRDashboard() {
   const { data: session } = useSession();
-  const router = useRouter();
   const [stats, setStats] = useState({
-    totalEmployees: 0,
-    employeeCount: 0,
-    hrCount: 0,
     pendingLeaves: 0,
-    clockedInToday: 0,
-    onLeaveToday: 0,
-    weeklyOffToday: 0,
+    todayAttendance: 0,
+    approvedLeaves: 0,
   });
   const [loading, setLoading] = useState(true);
   const [profileImage, setProfileImage] = useState<string | null>(null);
-  const [showNotClockedInModal, setShowNotClockedInModal] = useState(false);
 
   const fetchProfileImage = useCallback(async () => {
     try {
@@ -61,13 +53,9 @@ export default function HRDashboard() {
       const res = await fetch('/api/hr/stats');
       const data = await res.json();
       setStats({
-        totalEmployees: data.totalEmployees || 0,
-        employeeCount: data.employeeCount || 0,
-        hrCount: data.hrCount || 0,
         pendingLeaves: data.pendingLeaves || 0,
-        clockedInToday: data.clockedInToday || 0,
-        onLeaveToday: data.onLeaveToday || 0,
-        weeklyOffToday: data.weeklyOffToday || 0,
+        todayAttendance: data.todayAttendance || 0,
+        approvedLeaves: data.approvedLeaves || 0,
       });
     } catch (err) {
       console.error('Error fetching stats:', err);
@@ -76,59 +64,27 @@ export default function HRDashboard() {
     }
   };
 
-  // Calculate percentages for each stat
-  const totalEmployees = stats.totalEmployees || 1; // Avoid division by zero
-
   const statCards = [
-    {
-      title: 'Total Employees & HR',
-      value: stats.totalEmployees,
-      icon: Users,
-      bgColor: 'bg-yellow-100',
-      iconBg: 'bg-yellow-500',
-      percentage: 100, // Always 100% for total
-      trend: 'up' as 'up' | 'down',
-      onClick: undefined as (() => void) | undefined,
-    },
-    {
-      title: 'Clocked In Today',
-      value: stats.clockedInToday,
-      icon: Clock,
-      bgColor: 'bg-teal-100',
-      iconBg: 'bg-teal-500',
-      percentage: totalEmployees > 0 ? Math.round((stats.clockedInToday / totalEmployees) * 100) : 0,
-      trend: 'up' as 'up' | 'down',
-      onClick: () => setShowNotClockedInModal(true),
-    },
     {
       title: 'Pending Leaves',
       value: stats.pendingLeaves,
       icon: Calendar,
-      bgColor: 'bg-pink-100',
-      iconBg: 'bg-pink-500',
-      percentage: totalEmployees > 0 ? Math.round((stats.pendingLeaves / totalEmployees) * 100) : 0,
-      trend: 'down' as 'up' | 'down',
-      onClick: undefined as (() => void) | undefined,
+      gradient: 'from-yellow-500 to-yellow-600',
+      href: '/hr/leaves',
     },
     {
-      title: 'On Leave Today',
-      value: stats.onLeaveToday,
-      icon: CalendarX,
-      bgColor: 'bg-blue-100',
-      iconBg: 'bg-blue-500',
-      percentage: totalEmployees > 0 ? Math.round((stats.onLeaveToday / totalEmployees) * 100) : 0,
-      trend: 'down' as 'up' | 'down',
-      onClick: () => router.push('/hr/attendance?filter=leave'),
-    },
-    {
-      title: 'Weekly Off Today',
-      value: stats.weeklyOffToday,
+      title: 'Today Attendance',
+      value: stats.todayAttendance,
       icon: Clock,
-      bgColor: 'bg-purple-100',
-      iconBg: 'bg-purple-500',
-      percentage: totalEmployees > 0 ? Math.round((stats.weeklyOffToday / totalEmployees) * 100) : 0,
-      trend: 'down' as 'up' | 'down',
-      onClick: () => router.push('/hr/attendance?filter=weekOff'),
+      gradient: 'from-blue-500 to-blue-600',
+      href: '/hr/attendance',
+    },
+    {
+      title: 'Approved Leaves',
+      value: stats.approvedLeaves,
+      icon: Calendar,
+      gradient: 'from-green-500 to-green-600',
+      href: '/hr/leaves',
     },
   ];
 
@@ -153,44 +109,34 @@ export default function HRDashboard() {
           <TimeTrackingWidget />
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {statCards.map((stat, index) => {
               const Icon = stat.icon;
               return (
-                <motion.div
+                <motion.a
                   key={stat.title}
+                  href={stat.href}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  onClick={stat.onClick}
-                  className={`${stat.bgColor} rounded-xl shadow-md p-6 hover:shadow-lg transition-all ${stat.onClick ? 'cursor-pointer' : ''}`}
+                  className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-5 border border-white/50 hover:shadow-xl transition-shadow"
                 >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={`${stat.iconBg} p-3 rounded-full shadow-sm`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-gray-600 font-secondary mb-1">{stat.title}</p>
+                      {loading ? (
+                        <div className="h-9 flex items-center">
+                          <LoadingDots size="md" />
+                        </div>
+                      ) : (
+                        <p className="text-3xl font-primary font-bold text-gray-800">{stat.value}</p>
+                      )}
+                    </div>
+                    <div className={`bg-gradient-to-br ${stat.gradient} p-3 rounded-xl shadow-lg`}>
                       <Icon className="w-6 h-6 text-white" />
                     </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-700 font-secondary mb-2 font-semibold">{stat.title}</p>
-                    {loading ? (
-                      <div className="h-10 flex items-center">
-                        <LoadingDots size="md" />
-                      </div>
-                    ) : (
-                      <>
-                        <p className="text-3xl font-primary font-bold text-gray-900 mb-2">{stat.value}</p>
-                        <div className="flex items-center gap-1">
-                          <span className={`text-xs font-semibold font-secondary ${stat.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-                            {stat.trend === 'up' ? '↑' : '↓'} {stat.percentage}%
-                          </span>
-                          <span className="text-xs text-gray-600 font-secondary">
-                            {stat.trend === 'up' ? 'Increase' : 'Decrease'}
-                          </span>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </motion.div>
+                </motion.a>
               );
             })}
           </div>
@@ -205,12 +151,6 @@ export default function HRDashboard() {
           </motion.div>
         </div>
       </div>
-
-      {/* Not Clocked In Modal */}
-      <NotClockedInModal
-        isOpen={showNotClockedInModal}
-        onClose={() => setShowNotClockedInModal(false)}
-      />
     </DashboardLayout>
   );
 }

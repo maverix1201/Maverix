@@ -20,18 +20,10 @@ export async function GET(request: NextRequest) {
 
     const userId = (session.user as any).id;
     const userRole = (session.user as any).role;
-    
-    // Check if 'all' query parameter is present (for button visibility check)
-    const { searchParams } = new URL(request.url);
-    const getAll = searchParams.get('all') === 'true';
 
     // Get all announcements, sorted by newest first
     const announcements = await Announcement.find()
       .populate('createdBy', 'name email profileImage role')
-      .populate({
-        path: 'poll.options.votes.userId',
-        select: 'name email profileImage',
-      })
       .sort({ createdAt: -1 })
       .lean();
 
@@ -39,11 +31,6 @@ export async function GET(request: NextRequest) {
     if (userRole === 'employee') {
       const today = new Date();
       today.setHours(0, 0, 0, 0); // Set to start of day for comparison
-      
-      // If 'all=true' is requested, return all announcements (including future) for button visibility check
-      if (getAll) {
-        return NextResponse.json({ announcements });
-      }
       
       const filteredAnnouncements = announcements.filter((announcement: any) => {
         // Check if announcement date is today or in the past
@@ -89,7 +76,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { title, content, date, poll } = await request.json();
+    const { title, content, date } = await request.json();
 
     if (!title || !title.trim()) {
       return NextResponse.json(
@@ -130,26 +117,12 @@ export async function POST(request: NextRequest) {
 
     const userId = (session.user as any).id;
 
-    const announcementData: any = {
+    const announcement = new Announcement({
       title: title.trim(),
       content: content.trim(),
       date: new Date(date),
       createdBy: userId,
-    };
-
-    // Add poll if provided
-    if (poll && poll.question && poll.options && poll.options.length >= 2) {
-      announcementData.poll = {
-        question: poll.question.trim(),
-        options: poll.options.map((opt: any) => ({
-          text: opt.text.trim(),
-          votes: [],
-        })),
-        createdAt: new Date(),
-      };
-    }
-
-    const announcement = new Announcement(announcementData);
+    });
 
     await announcement.save();
     await announcement.populate('createdBy', 'name email profileImage role');

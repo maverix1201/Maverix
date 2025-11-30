@@ -23,15 +23,13 @@ export async function GET(request: NextRequest) {
 
     const role = (session.user as any).role;
     const userId = (session.user as any).id;
-    const allLeaves = request.nextUrl.searchParams.get('all') === 'true';
 
     let query: any = {};
 
-    if (role === 'employee' || (role === 'hr' && !allLeaves)) {
-      // Employees and HR (when not requesting all leaves) can see both allotted leaves and their leave requests
+    if (role === 'employee') {
+      // Employees can see both allotted leaves and their leave requests
       query.userId = userId;
     }
-    // Admin and HR (when requesting all leaves for leave allotment page) can see all leaves
 
     const leaves = await Leave.find(query)
       .populate('userId', 'name email profileImage')
@@ -41,7 +39,7 @@ export async function GET(request: NextRequest) {
       .lean();
 
     // For allotted leaves, ensure remainingDays is calculated if missing
-    if (role === 'employee' || (role === 'hr' && !allLeaves)) {
+    if (role === 'employee') {
       for (const leave of leaves) {
         if (leave.allottedBy && (leave.remainingDays === undefined || leave.remainingDays === null)) {
           // Get the actual ObjectId (handle both populated and non-populated cases)
@@ -201,25 +199,23 @@ export async function POST(request: NextRequest) {
     await leave.populate('userId', 'name email profileImage');
     await leave.populate('leaveType', 'name description');
 
-    // Send email notification to Admin only
-    // HR and Employee leave requests both go to Admin for approval
-    const userRole = (session.user as any).role;
-    if (userRole === 'employee' || userRole === 'hr') {
+    // Send email notification to HR and Admin (only for employee requests)
+    if ((session.user as any).role === 'employee') {
       try {
-        // Get only Admin emails (HR leaves also go to admin for approval)
-        const adminUsers = await User.find({
-          role: 'admin',
+        // Get all HR and Admin emails
+        const hrAndAdminUsers = await User.find({
+          role: { $in: ['hr', 'admin'] },
           emailVerified: true,
         }).select('email').lean();
 
-        const adminEmails = adminUsers.map((user: any) => user.email).filter(Boolean);
+        const hrAndAdminEmails = hrAndAdminUsers.map((user: any) => user.email).filter(Boolean);
 
-        if (adminEmails.length > 0) {
+        if (hrAndAdminEmails.length > 0) {
           const user = typeof leave.userId === 'object' && leave.userId && 'email' in leave.userId ? leave.userId as any : null;
           const leaveType = typeof leave.leaveType === 'object' && leave.leaveType && 'name' in leave.leaveType ? leave.leaveType as any : null;
 
           if (user && leaveType) {
-            await sendLeaveRequestNotificationToHR(adminEmails, {
+            await sendLeaveRequestNotificationToHR(hrAndAdminEmails, {
               employeeName: (user.name as string) || 'Employee',
               employeeEmail: (user.email as string) || '',
               profileImage: user.profileImage as string | undefined,

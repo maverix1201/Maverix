@@ -9,13 +9,13 @@ import TimeTrackingWidget from '@/components/TimeTrackingWidget';
 import UpcomingBirthdays from '@/components/UpcomingBirthdays';
 import BirthdayCelebration from '@/components/BirthdayCelebration';
 import AnnouncementModal from '@/components/AnnouncementModal';
-import NotificationDropdown from '@/components/NotificationDropdown';
-import { Clock, Calendar, Users, TrendingUp, Megaphone, Bell } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Clock, Calendar, Users, TrendingUp } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useToast } from '@/contexts/ToastContext';
 import UserAvatar from '@/components/UserAvatar';
 import LoadingDots from '@/components/LoadingDots';
 import Logo from '@/components/Logo';
+import LeaveNotificationAlert from '@/components/LeaveNotificationAlert';
 
 export default function EmployeeDashboard() {
   const { data: session } = useSession();
@@ -34,13 +34,7 @@ export default function EmployeeDashboard() {
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [currentAnnouncementIndex, setCurrentAnnouncementIndex] = useState(0);
   const [showAnnouncement, setShowAnnouncement] = useState(false);
-  const [activeAnnouncements, setActiveAnnouncements] = useState<any[]>([]);
-  const [showAnnouncementButton, setShowAnnouncementButton] = useState(true); // Always visible
-  const [hasNewAnnouncement, setHasNewAnnouncement] = useState(false);
-  const [lastAnnouncementId, setLastAnnouncementId] = useState<string | null>(null);
   const [greeting, setGreeting] = useState('🌟 Welcome');
-  const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
-  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   // Function to get time-based greeting
   const getGreeting = () => {
@@ -175,91 +169,6 @@ export default function EmployeeDashboard() {
     }
   };
 
-  const fetchActiveAnnouncements = async (isInitialLoad = false) => {
-    try {
-      // Use a query parameter to get all announcements including future ones
-      const res = await fetch('/api/announcements?all=true');
-      const data = await res.json();
-      
-      if (res.ok && data.announcements) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        // Filter announcements that are today or in the future
-        const active = data.announcements.filter((announcement: any) => {
-          const announcementDate = new Date(announcement.date);
-          announcementDate.setHours(0, 0, 0, 0);
-          return announcementDate >= today;
-        });
-        
-        // Sort by creation date (newest first)
-        active.sort((a: any, b: any) => {
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        });
-        
-        // Check for new announcement
-        if (!isInitialLoad && active.length > 0 && lastAnnouncementId) {
-          const newestAnnouncement = active[0];
-          if (newestAnnouncement._id !== lastAnnouncementId) {
-            // New announcement detected!
-            setHasNewAnnouncement(true);
-            // Stop glowing after 10 seconds
-            setTimeout(() => {
-              setHasNewAnnouncement(false);
-            }, 10000);
-          }
-        }
-        
-        // Update last announcement ID
-        if (active.length > 0) {
-          setLastAnnouncementId(active[0]._id);
-        }
-        
-        setActiveAnnouncements(active);
-        setShowAnnouncementButton(true); // Always show button
-      }
-    } catch (err) {
-      console.error('Error fetching active announcements:', err);
-    }
-  };
-
-  const handleShowAnnouncement = async () => {
-    // Stop the glowing animation when button is clicked
-    setHasNewAnnouncement(false);
-    
-    // If no active announcements, fetch them first
-    if (activeAnnouncements.length === 0) {
-      // Fetch announcements and get the result
-      const res = await fetch('/api/announcements?all=true');
-      const data = await res.json();
-      
-      if (res.ok && data.announcements) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const active = data.announcements.filter((announcement: any) => {
-          const announcementDate = new Date(announcement.date);
-          announcementDate.setHours(0, 0, 0, 0);
-          return announcementDate >= today;
-        });
-        
-        active.sort((a: any, b: any) => {
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        });
-        
-        if (active.length > 0) {
-          setAnnouncements(active);
-          setCurrentAnnouncementIndex(0);
-          setShowAnnouncement(true);
-        }
-      }
-    } else {
-      setAnnouncements(activeAnnouncements);
-      setCurrentAnnouncementIndex(0);
-      setShowAnnouncement(true);
-    }
-  };
-
   const handleAnnouncementClose = () => {
     if (currentAnnouncementIndex < announcements.length - 1) {
       // Show next announcement
@@ -268,15 +177,12 @@ export default function EmployeeDashboard() {
       // All announcements shown
       setShowAnnouncement(false);
       setAnnouncements([]);
-      // Refresh active announcements to update button visibility
-      fetchActiveAnnouncements();
     }
   };
 
   const handleAnnouncementViewTracked = () => {
     // Refresh announcements to get updated view counts
     fetchAnnouncements();
-    fetchActiveAnnouncements(); // Also refresh active announcements
   };
 
   useEffect(() => {
@@ -284,46 +190,14 @@ export default function EmployeeDashboard() {
       fetchStats();
       fetchUserProfile();
       fetchAnnouncements();
-      fetchActiveAnnouncements(true); // Initial load
       fetchProfileImage();
     }
   }, [session, fetchStats, fetchProfileImage]);
 
-  // Check for new announcements periodically (every 5 seconds)
-  useEffect(() => {
-    if (!session) return;
-    
-    const interval = setInterval(() => {
-      fetchActiveAnnouncements(false); // Check for updates
-      fetchUnreadNotificationCount(); // Check for new notifications
-    }, 5000); // Check every 5 seconds for new announcements
-
-    return () => clearInterval(interval);
-  }, [session, lastAnnouncementId]);
-
-  // Fetch unread notification count
-  const fetchUnreadNotificationCount = async () => {
-    try {
-      const res = await fetch('/api/notifications?limit=10&includeDismissed=false');
-      const data = await res.json();
-      if (res.ok) {
-        const unread = data.notifications?.filter((n: any) => !n.read).length || 0;
-        setUnreadNotificationCount(unread);
-      }
-    } catch (err) {
-      console.error('Error fetching notification count:', err);
-    }
-  };
-
-  // Initial fetch of notification count
-  useEffect(() => {
-    if (session) {
-      fetchUnreadNotificationCount();
-    }
-  }, [session]);
-
   return (
-    <DashboardLayout role="employee">
+    <>
+      <LeaveNotificationAlert />
+      <DashboardLayout role="employee">
       {/* Birthday Celebration Modal */}
       {showBirthdayCelebration && userProfile && (
         <BirthdayCelebration
@@ -350,94 +224,9 @@ export default function EmployeeDashboard() {
       
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
         <div className="space-y-6 p-4 md:p-6">
-          {/* Logo and Action Buttons - Mobile Only */}
-          <div className="flex items-center justify-between md:hidden mb-4">
+          {/* Logo - Mobile Only */}
+          <div className="flex justify-center md:hidden mb-2">
             <Logo size="md" />
-            <div className="flex items-center gap-2">
-              {showAnnouncementButton && (
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{
-                    opacity: 1,
-                    scale: hasNewAnnouncement ? [1, 1.1, 1] : 1,
-                    boxShadow: hasNewAnnouncement
-                      ? [
-                          '0 0 0 0 rgba(59, 130, 246, 0.7)',
-                          '0 0 0 10px rgba(59, 130, 246, 0)',
-                          '0 0 0 0 rgba(59, 130, 246, 0)',
-                        ]
-                      : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                  }}
-                  transition={{
-                    scale: {
-                      duration: 0.6,
-                      repeat: hasNewAnnouncement ? Infinity : 0,
-                      repeatDelay: 1,
-                    },
-                    boxShadow: {
-                      duration: 1.5,
-                      repeat: hasNewAnnouncement ? Infinity : 0,
-                      repeatDelay: 0.5,
-                    },
-                  }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    setHasNewAnnouncement(false);
-                    handleShowAnnouncement();
-                  }}
-                  className={`relative flex items-center justify-center w-10 h-10 bg-white text-black rounded-lg shadow-md hover:shadow-lg transition-all z-10 ${
-                    hasNewAnnouncement ? 'ring-2 ring-blue-400 ring-opacity-75' : ''
-                  }`}
-                >
-                  <Megaphone className={`w-4 h-4 relative z-10 ${hasNewAnnouncement ? 'animate-pulse' : ''}`} />
-                  {activeAnnouncements.length > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center z-10">
-                      {activeAnnouncements.length}
-                    </span>
-                  )}
-                </motion.button>
-              )}
-              
-              {/* Notification Button */}
-              <div className="relative">
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    setShowNotificationDropdown(!showNotificationDropdown);
-                    fetchUnreadNotificationCount();
-                  }}
-                  className="relative flex items-center justify-center w-10 h-10 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-lg shadow-md hover:shadow-lg transition-all z-10"
-                >
-                  <Bell className="w-5 h-5 text-gray-700" />
-                  {unreadNotificationCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                      {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
-                    </span>
-                  )}
-                </motion.button>
-                
-                {/* Notification Dropdown */}
-                <AnimatePresence>
-                  {showNotificationDropdown && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.2 }}
-                      className="absolute right-0 mt-2 z-50"
-                    >
-                      <NotificationDropdown
-                        onClose={() => setShowNotificationDropdown(false)}
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
           </div>
 
           {/* Header */}
@@ -465,91 +254,8 @@ export default function EmployeeDashboard() {
               </div>
 
             </div>
-            <div className="w-full md:w-auto flex items-center gap-3 flex-wrap">
+            <div className="w-full md:w-auto">
               <EmployeeSearch />
-              {showAnnouncementButton && (
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{
-                    opacity: 1,
-                    scale: hasNewAnnouncement ? [1, 1.1, 1] : 1,
-                    boxShadow: hasNewAnnouncement
-                      ? [
-                          '0 0 0 0 rgba(59, 130, 246, 0.7)',
-                          '0 0 0 10px rgba(59, 130, 246, 0)',
-                          '0 0 0 0 rgba(59, 130, 246, 0)',
-                        ]
-                      : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                  }}
-                  transition={{
-                    scale: {
-                      duration: 0.6,
-                      repeat: hasNewAnnouncement ? Infinity : 0,
-                      repeatDelay: 1,
-                    },
-                    boxShadow: {
-                      duration: 1.5,
-                      repeat: hasNewAnnouncement ? Infinity : 0,
-                      repeatDelay: 0.5,
-                    },
-                  }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    setHasNewAnnouncement(false); // Stop animation when clicked
-                    handleShowAnnouncement();
-                  }}
-                  className={`hidden md:flex relative items-center gap-2 px-4 py-3 bg-white text-black rounded-lg shadow-md hover:shadow-lg transition-all font-secondary font-semibold text-sm whitespace-nowrap z-10 ${
-                    hasNewAnnouncement ? 'ring-2 ring-blue-400 ring-opacity-75' : ''
-                  }`}
-                >
-                  <Megaphone className={`w-4 h-4 relative z-10 ${hasNewAnnouncement ? 'animate-pulse' : ''}`} />
-                  {activeAnnouncements.length > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                      {activeAnnouncements.length}
-                    </span>
-                  )}
-                </motion.button>
-              )}
-              
-              {/* Notification Button */}
-              <div className="relative hidden md:block">
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    setShowNotificationDropdown(!showNotificationDropdown);
-                    fetchUnreadNotificationCount(); // Refresh count when opening
-                  }}
-                  className="relative flex items-center justify-center w-10 h-10 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-lg shadow-md hover:shadow-lg transition-all z-10"
-                >
-                  <Bell className="w-5 h-5 text-gray-700" />
-                  {unreadNotificationCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                      {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
-                    </span>
-                  )}
-                </motion.button>
-                
-                {/* Notification Dropdown */}
-                <AnimatePresence>
-                  {showNotificationDropdown && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.2 }}
-                      className="absolute right-0 mt-2 z-50"
-                    >
-                      <NotificationDropdown
-                        onClose={() => setShowNotificationDropdown(false)}
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
             </div>
           </div>
 
@@ -562,30 +268,22 @@ export default function EmployeeDashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="bg-yellow-100 rounded-xl shadow-md p-6 hover:shadow-lg transition-all"
+              className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-5 border border-white/50 hover:shadow-xl transition-shadow"
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className="bg-yellow-500 p-3 rounded-full shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-600 font-secondary mb-1">Total Leave Types</p>
+                  {loading ? (
+                    <div className="h-9 flex items-center">
+                      <LoadingDots size="md" />
+                    </div>
+                  ) : (
+                    <p className="text-3xl font-primary font-bold text-gray-800">{stats.totalLeaveTypes}</p>
+                  )}
+                </div>
+                <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-xl shadow-lg">
                   <Calendar className="w-6 h-6 text-white" />
                 </div>
-              </div>
-              <div>
-                <p className="text-sm text-gray-700 font-secondary mb-2 font-semibold">Total Leave Types</p>
-                {loading ? (
-                  <div className="h-10 flex items-center">
-                    <LoadingDots size="md" />
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-3xl font-primary font-bold text-gray-900 mb-2">{stats.totalLeaveTypes}</p>
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs font-semibold font-secondary text-green-600">
-                        ↑ {stats.totalLeaveTypes > 0 ? 100 : 0}%
-                      </span>
-                      <span className="text-xs text-gray-600 font-secondary">Available</span>
-                    </div>
-                  </>
-                )}
               </div>
             </motion.div>
 
@@ -593,30 +291,22 @@ export default function EmployeeDashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="bg-teal-100 rounded-xl shadow-md p-6 hover:shadow-lg transition-all"
+              className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-5 border border-white/50 hover:shadow-xl transition-shadow"
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className="bg-teal-500 p-3 rounded-full shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-600 font-secondary mb-1">Pending Leaves</p>
+                  {loading ? (
+                    <div className="h-9 flex items-center">
+                      <LoadingDots size="md" />
+                    </div>
+                  ) : (
+                    <p className="text-3xl font-primary font-bold text-gray-800">{stats.pendingLeaves}</p>
+                  )}
+                </div>
+                <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 p-3 rounded-xl shadow-lg">
                   <Calendar className="w-6 h-6 text-white" />
                 </div>
-              </div>
-              <div>
-                <p className="text-sm text-gray-700 font-secondary mb-2 font-semibold">Pending Leaves</p>
-                {loading ? (
-                  <div className="h-10 flex items-center">
-                    <LoadingDots size="md" />
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-3xl font-primary font-bold text-gray-900 mb-2">{stats.pendingLeaves}</p>
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs font-semibold font-secondary text-red-600">
-                        ↓ {stats.pendingLeaves > 0 ? 50 : 0}%
-                      </span>
-                      <span className="text-xs text-gray-600 font-secondary">Pending</span>
-                    </div>
-                  </>
-                )}
               </div>
             </motion.div>
 
@@ -624,30 +314,22 @@ export default function EmployeeDashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="bg-pink-100 rounded-xl shadow-md p-6 hover:shadow-lg transition-all"
+              className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-5 border border-white/50 hover:shadow-xl transition-shadow"
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className="bg-pink-500 p-3 rounded-full shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-600 font-secondary mb-1">Total in Team</p>
+                  {loading ? (
+                    <div className="h-9 flex items-center">
+                      <LoadingDots size="md" />
+                    </div>
+                  ) : (
+                    <p className="text-3xl font-primary font-bold text-gray-800">{stats.totalInTeam}</p>
+                  )}
+                </div>
+                <div className="bg-gradient-to-br from-green-500 to-green-600 p-3 rounded-xl shadow-lg">
                   <Users className="w-6 h-6 text-white" />
                 </div>
-              </div>
-              <div>
-                <p className="text-sm text-gray-700 font-secondary mb-2 font-semibold">Total in Team</p>
-                {loading ? (
-                  <div className="h-10 flex items-center">
-                    <LoadingDots size="md" />
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-3xl font-primary font-bold text-gray-900 mb-2">{stats.totalInTeam}</p>
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs font-semibold font-secondary text-green-600">
-                        ↑ {stats.totalInTeam > 0 ? 75 : 0}%
-                      </span>
-                      <span className="text-xs text-gray-600 font-secondary">Active</span>
-                    </div>
-                  </>
-                )}
               </div>
             </motion.div>
 
@@ -655,30 +337,22 @@ export default function EmployeeDashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="bg-blue-100 rounded-xl shadow-md p-6 hover:shadow-lg transition-all"
+              className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg p-5 border border-white/50 hover:shadow-xl transition-shadow"
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className="bg-blue-500 p-3 rounded-full shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-600 font-secondary mb-1">Working Hours (Week)</p>
+                  {loading ? (
+                    <div className="h-9 flex items-center">
+                      <LoadingDots size="md" />
+                    </div>
+                  ) : (
+                    <p className="text-3xl font-primary font-bold text-gray-800">{stats.weeklyHours}</p>
+                  )}
+                </div>
+                <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-3 rounded-xl shadow-lg">
                   <TrendingUp className="w-6 h-6 text-white" />
                 </div>
-              </div>
-              <div>
-                <p className="text-sm text-gray-700 font-secondary mb-2 font-semibold">Working Hours (Week)</p>
-                {loading ? (
-                  <div className="h-10 flex items-center">
-                    <LoadingDots size="md" />
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-3xl font-primary font-bold text-gray-900 mb-2">{stats.weeklyHours}</p>
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs font-semibold font-secondary text-green-600">
-                        ↑ {stats.weeklyHours > 0 ? 60 : 0}%
-                      </span>
-                      <span className="text-xs text-gray-600 font-secondary">This Week</span>
-                    </div>
-                  </>
-                )}
               </div>
             </motion.div>
           </div>
@@ -694,5 +368,6 @@ export default function EmployeeDashboard() {
         </div>
       </div>
     </DashboardLayout>
+    </>
   );
 }

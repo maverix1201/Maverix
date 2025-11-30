@@ -33,7 +33,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Invalid announcement ID' }, { status: 400 });
     }
 
-    const { title, content, date, poll } = await request.json();
+    const { title, content, date } = await request.json();
 
     if (title !== undefined && (!title || !title.trim())) {
       return NextResponse.json(
@@ -90,40 +90,8 @@ export async function PUT(
       announcement.date = new Date(date);
     }
 
-    // Update poll if provided
-    if (poll !== undefined) {
-      if (poll === null) {
-        // Remove poll if explicitly set to null - use delete to ensure it's removed from DB
-        delete announcement.poll;
-        announcement.markModified('poll');
-      } else if (poll && poll.question && poll.options && poll.options.length >= 2) {
-        // Preserve existing votes when updating poll
-        const existingVotes = announcement.poll?.options || [];
-        announcement.poll = {
-          question: poll.question.trim(),
-          options: poll.options.map((opt: any, index: number) => {
-            // Try to preserve votes from existing option if text matches
-            const existingOption = existingVotes.find((e: any) => e.text === opt.text.trim());
-            return {
-              text: opt.text.trim(),
-              votes: existingOption?.votes || [],
-            };
-          }),
-          createdAt: announcement.poll?.createdAt || new Date(),
-        };
-      } else {
-        // Remove poll if invalid data provided
-        delete announcement.poll;
-        announcement.markModified('poll');
-      }
-    }
-
     await announcement.save();
     await announcement.populate('createdBy', 'name email profileImage role');
-    await announcement.populate({
-      path: 'poll.options.votes.userId',
-      select: 'name email profileImage',
-    });
 
     return NextResponse.json({
       message: 'Announcement updated successfully',

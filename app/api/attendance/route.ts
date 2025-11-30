@@ -22,8 +22,7 @@ export async function GET(request: NextRequest) {
 
     let query: any = {};
 
-    // Filter by userId for employee and HR (when viewing their own attendance)
-    if (role === 'employee' || role === 'hr') {
+    if (role === 'employee') {
       query.userId = userId;
     }
 
@@ -53,7 +52,7 @@ export async function GET(request: NextRequest) {
     const attendance = await Attendance.find(query)
       .populate('userId', 'name email profileImage mobileNumber')
       .sort({ clockIn: -1 })
-      .limit(500) // Increased limit to support month filtering
+      .limit(100)
       .lean();
 
     return NextResponse.json({ attendance });

@@ -18,8 +18,6 @@ export async function PUT(
     }
 
     const role = (session.user as any).role;
-    const userId = (session.user as any).id;
-    
     if (role !== 'admin' && role !== 'hr') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -35,21 +33,10 @@ export async function PUT(
 
     await connectDB();
 
-    const finance = await Finance.findById(params.id).populate('userId', '_id role');
+    const finance = await Finance.findById(params.id);
 
     if (!finance) {
       return NextResponse.json({ error: 'Finance record not found' }, { status: 404 });
-    }
-
-    // Prevent HR from editing their own finance record
-    if (role === 'hr') {
-      const financeUserId = finance.userId?._id?.toString() || finance.userId?.toString();
-      if (financeUserId === userId) {
-        return NextResponse.json(
-          { error: 'HR users cannot edit their own salary. Please contact an Admin.' },
-          { status: 403 }
-        );
-      }
     }
 
     // Update finance record
@@ -83,29 +70,16 @@ export async function DELETE(
     }
 
     const role = (session.user as any).role;
-    const userId = (session.user as any).id;
-    
     if (role !== 'admin' && role !== 'hr') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     await connectDB();
 
-    const finance = await Finance.findById(params.id).populate('userId', '_id role');
+    const finance = await Finance.findById(params.id);
 
     if (!finance) {
       return NextResponse.json({ error: 'Finance record not found' }, { status: 404 });
-    }
-
-    // Prevent HR from deleting their own finance record
-    if (role === 'hr') {
-      const financeUserId = finance.userId?._id?.toString() || finance.userId?.toString();
-      if (financeUserId === userId) {
-        return NextResponse.json(
-          { error: 'HR users cannot delete their own salary. Please contact an Admin.' },
-          { status: 403 }
-        );
-      }
     }
 
     await Finance.findByIdAndDelete(params.id);

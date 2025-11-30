@@ -38,11 +38,9 @@ interface AllottedLeavesListProps {
   employees: any[];
   onRefresh?: () => void;
   onEditEmployee?: (employeeId: string, employeeLeaves: Leave[]) => void;
-  currentUserId?: string;
-  currentUserRole?: string;
 }
 
-export default function AllottedLeavesList({ leaves, employees, onRefresh, onEditEmployee, currentUserId, currentUserRole }: AllottedLeavesListProps) {
+export default function AllottedLeavesList({ leaves, employees, onRefresh, onEditEmployee }: AllottedLeavesListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEmployee, setFilterEmployee] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -143,8 +141,6 @@ export default function AllottedLeavesList({ leaves, employees, onRefresh, onEdi
       if (onRefresh) {
         onRefresh();
       }
-      // Dispatch event to sync other pages
-      window.dispatchEvent(new CustomEvent('leaveAllotmentUpdated'));
     } catch (err) {
       toast.error('An error occurred');
       setDeleting(false);
@@ -242,16 +238,13 @@ export default function AllottedLeavesList({ leaves, employees, onRefresh, onEdi
                       </div>
                     </div>
                     </div>
-                  {/* Hide Edit button if HR is trying to edit their own allotted leaves */}
-                  {!(currentUserRole === 'hr' && userId === currentUserId) && (
-                    <button
-                      onClick={() => handleEditEmployee(userId)}
-                      className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors font-secondary"
-                    >
-                      <Edit className="w-3.5 h-3.5" />
-                      Edit
-                    </button>
-                  )}
+                  <button
+                    onClick={() => handleEditEmployee(userId)}
+                    className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors font-secondary"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                    Edit
+                  </button>
                     </div>
 
                 {/* Leave Types Grid */}

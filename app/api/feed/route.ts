@@ -4,7 +4,6 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Feed from '@/models/Feed';
 import User from '@/models/User';
-import mongoose from 'mongoose';
 
 export const dynamic = 'force-dynamic';
 
@@ -109,31 +108,6 @@ export async function POST(request: NextRequest) {
       select: 'name email profileImage mobileNumber role designation',
       strictPopulate: false,
     });
-
-    // Create notifications for mentioned users
-    if (mentionUserIds.length > 0) {
-      try {
-        const { createNotification } = await import('@/lib/notificationManager');
-        const mentionedBy = await User.findById(userId).select('name').lean();
-        
-        for (const mentionedUserId of mentionUserIds) {
-          // Don't notify if user mentioned themselves
-          if (mentionedUserId === userId) continue;
-          
-          await createNotification({
-            userId: mentionedUserId,
-            type: 'mention',
-            title: 'You were mentioned',
-            message: `${mentionedBy?.name || 'Someone'} mentioned you in a post`,
-            feedId: (feed._id as mongoose.Types.ObjectId).toString(),
-            mentionedBy: userId.toString(),
-          });
-        }
-      } catch (notificationError) {
-        // Log error but don't fail the feed creation
-        console.error('Error creating mention notifications:', notificationError);
-      }
-    }
 
     return NextResponse.json({
       message: 'Post created successfully',

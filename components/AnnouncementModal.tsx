@@ -1,12 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Megaphone, Calendar, X, Sparkles, BarChart3, CheckCircle2 } from 'lucide-react';
+import { Megaphone, Calendar, X, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
-import { useSession } from 'next-auth/react';
 import UserAvatar from './UserAvatar';
-import { useToast } from '@/contexts/ToastContext';
 
 interface Announcement {
   _id: string;
@@ -21,17 +19,6 @@ interface Announcement {
     role: string;
   };
   createdAt: string;
-  poll?: {
-    question: string;
-    options: Array<{
-      text: string;
-      votes: Array<{
-        userId: string;
-        votedAt: string;
-      }>;
-    }>;
-    createdAt: string;
-  };
 }
 
 interface AnnouncementModalProps {
@@ -45,15 +32,7 @@ export default function AnnouncementModal({
   onClose,
   onViewTracked,
 }: AnnouncementModalProps) {
-  const { data: session } = useSession();
-  const toast = useToast();
-  const [localAnnouncement, setLocalAnnouncement] = useState<Announcement>(announcement);
-  const [voting, setVoting] = useState(false);
-
   useEffect(() => {
-    // Update local announcement when prop changes
-    setLocalAnnouncement(announcement);
-    
     // Track view when modal opens
     const trackView = async () => {
       try {
@@ -67,70 +46,7 @@ export default function AnnouncementModal({
     };
 
     trackView();
-  }, [announcement._id, announcement, onViewTracked]);
-
-  const handleVote = async (optionIndex: number) => {
-    if (!session) return;
-    setVoting(true);
-    try {
-      const res = await fetch(`/api/announcements/${announcement._id}/poll/vote`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ optionIndex }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setLocalAnnouncement(data.announcement);
-        toast.success('Vote recorded!');
-      } else {
-        toast.error(data.error || 'Failed to vote');
-      }
-    } catch (err) {
-      console.error('Error voting:', err);
-      toast.error('Failed to vote');
-    } finally {
-      setVoting(false);
-    }
-  };
-
-  const getUserVote = () => {
-    if (!session || !localAnnouncement.poll) return null;
-    const userId = (session.user as any)?.id;
-    if (!userId) return null;
-    
-    for (let i = 0; i < localAnnouncement.poll.options.length; i++) {
-      const option = localAnnouncement.poll.options[i];
-      if (option.votes && option.votes.length > 0) {
-        // Check if user has voted on this option
-        // Handle both cases: userId as string or as object with _id
-        const hasVoted = option.votes.some((v: any) => {
-          if (!v.userId) return false;
-          // If userId is an object (populated), check _id
-          if (typeof v.userId === 'object' && v.userId !== null) {
-            return v.userId._id?.toString() === userId || v.userId.toString() === userId;
-          }
-          // If userId is a string, compare directly
-          return v.userId.toString() === userId;
-        });
-        
-        if (hasVoted) {
-          return i;
-        }
-      }
-    }
-    return null;
-  };
-
-  const getTotalVotes = () => {
-    if (!localAnnouncement.poll) return 0;
-    return localAnnouncement.poll.options.reduce((sum, opt) => sum + opt.votes.length, 0);
-  };
-
-  const getVotePercentage = (votes: number) => {
-    const total = getTotalVotes();
-    if (total === 0) return 0;
-    return Math.round((votes / total) * 100);
-  };
+  }, [announcement._id, onViewTracked]);
 
   // Generate floating particles
   const particles = Array.from({ length: 30 }, (_, i) => ({
@@ -152,7 +68,8 @@ export default function AnnouncementModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+          className="absolute inset-0 bg-gradient-to-br from-blue-900/80 via-purple-900/80 to-pink-900/80 backdrop-blur-md"
+          onClick={onClose}
         />
 
         {/* Floating Particles */}
@@ -195,171 +112,180 @@ export default function AnnouncementModal({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.8, y: 50 }}
           transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-          className="relative bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-4 md:p-5 max-w-xl w-full mx-4 border border-white/50 overflow-hidden"
+          className="relative bg-gradient-to-br from-white via-blue-50 to-purple-50 rounded-3xl shadow-2xl p-8 md:p-12 max-w-3xl w-full mx-4 border-4 border-white/50 overflow-hidden"
         >
+          {/* Animated Background Pattern */}
+          <div className="absolute inset-0 opacity-5 pointer-events-none">
+            {[...Array(20)].map((_, i) => (
+              <motion.div
+                key={i}
+                className="absolute w-32 h-32 border-2 border-blue-500 rounded-full"
+                style={{
+                  left: `${(i % 5) * 25}%`,
+                  top: `${Math.floor(i / 5) * 25}%`,
+                }}
+                animate={{
+                  scale: [1, 1.5, 1],
+                  rotate: [0, 180, 360],
+                }}
+                transition={{
+                  duration: 10 + i * 0.5,
+                  repeat: Infinity,
+                  ease: 'linear',
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Sparkle decorations */}
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+            className="absolute top-6 right-6"
+          >
+            <Sparkles className="w-8 h-8 text-blue-400" />
+          </motion.div>
+          <motion.div
+            animate={{ rotate: -360 }}
+            transition={{ duration: 15, repeat: Infinity, ease: 'linear' }}
+            className="absolute bottom-6 left-6"
+          >
+            <Sparkles className="w-6 h-6 text-purple-400" />
+          </motion.div>
 
           {/* Close Button */}
           <button
             onClick={onClose}
-            className="absolute top-3 right-3 z-20 p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+            className="absolute top-6 right-6 z-20 p-2 hover:bg-white/50 rounded-full transition-colors"
           >
-            <X className="w-4 h-4 text-gray-500" />
+            <X className="w-6 h-6 text-gray-600" />
           </button>
 
           {/* Content */}
           <div className="relative z-10">
-            {/* Header with Creator Info */}
+            {/* Icon */}
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+              className="mb-6 flex justify-center"
+            >
+              <div className="relative">
+                <motion.div
+                  animate={{
+                    rotate: [0, -10, 10, -10, 0],
+                    scale: [1, 1.1, 1, 1.1, 1],
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    repeatDelay: 1,
+                  }}
+                  className="bg-gradient-to-br from-blue-500 to-purple-600 p-6 rounded-full shadow-2xl"
+                >
+                  <Megaphone className="w-12 h-12 text-white" />
+                </motion.div>
+                <motion.div
+                  animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0, 0.5] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full blur-2xl"
+                />
+              </div>
+            </motion.div>
+
+            {/* Creator Info */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="flex items-center gap-3 mb-3"
+              transition={{ delay: 0.4 }}
+              className="flex items-center justify-center gap-3 mb-6"
             >
               <UserAvatar
                 name={announcement.createdBy.name}
                 image={announcement.createdBy.profileImage}
-                size="sm"
+                size="lg"
+                className="ring-4 ring-blue-200 shadow-lg"
               />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-primary font-semibold text-gray-800 truncate">
+              <div className="text-center">
+                <p className="text-lg font-primary font-bold text-gray-800">
                   {announcement.createdBy.name}
                 </p>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <span className="capitalize font-secondary">{announcement.createdBy.role}</span>
-                  <span>•</span>
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    <span className="font-secondary">{format(new Date(announcement.date), 'MMM dd, yyyy')}</span>
-                  </div>
-                </div>
+                <p className="text-sm text-gray-600 font-secondary capitalize">
+                  {announcement.createdBy.role}
+                </p>
               </div>
             </motion.div>
 
             {/* Title */}
             <motion.h1
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="text-lg md:text-xl font-primary font-bold text-gray-900 mb-2"
+              transition={{ delay: 0.6 }}
+              className="text-3xl md:text-4xl font-primary font-bold text-gray-800 mb-4 text-center"
             >
               {announcement.title}
             </motion.h1>
 
+            {/* Date */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.7 }}
+              className="flex items-center justify-center gap-2 mb-6 text-gray-600"
+            >
+              <Calendar className="w-5 h-5" />
+              <span className="font-secondary">
+                {format(new Date(announcement.date), 'MMMM dd, yyyy')}
+              </span>
+            </motion.div>
+
             {/* Content */}
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="mb-3"
+              transition={{ delay: 0.8 }}
+              className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 md:p-8 mb-8 border border-white/50 shadow-lg"
             >
-              <p className="text-sm text-gray-700 font-secondary whitespace-pre-wrap leading-relaxed">
-                {localAnnouncement.content}
+              <p className="text-base md:text-lg text-gray-700 font-secondary whitespace-pre-wrap leading-relaxed">
+                {announcement.content}
               </p>
             </motion.div>
 
-            {/* Poll Section */}
-            {localAnnouncement.poll && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="border-t border-gray-200 pt-3 mt-3"
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <BarChart3 className="w-4 h-4 text-blue-600" />
-                  <h3 className="text-sm font-primary font-semibold text-gray-800">Poll</h3>
-                </div>
-                <p className="text-sm font-primary font-medium text-gray-700 mb-3">
-                  {localAnnouncement.poll.question}
-                </p>
-                <div className="space-y-2">
-                  {localAnnouncement.poll.options.map((option, index) => {
-                    const voteCount = option.votes?.length || 0;
-                    const percentage = getVotePercentage(voteCount);
-                    const userVotedIndex = getUserVote();
-                    const userVoted = userVotedIndex === index;
-                    const totalVotes = getTotalVotes();
-                    const hasVoted = userVotedIndex !== null;
-
-                    return (
-                      <motion.button
-                        key={index}
-                        onClick={() => !voting && !hasVoted && handleVote(index)}
-                        disabled={voting || hasVoted}
-                        className={`w-full text-left p-2.5 rounded-lg border transition-all relative overflow-hidden ${
-                          userVoted
-                            ? 'border-green-500 bg-green-50 shadow-sm ring-2 ring-green-200'
-                            : hasVoted
-                            ? 'border-gray-200 bg-gray-50 cursor-not-allowed'
-                            : 'border-gray-200 bg-white hover:border-blue-400 hover:bg-blue-50 cursor-pointer'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between relative z-10">
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            {userVoted && (
-                              <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
-                            )}
-                            <span className={`text-sm font-secondary truncate ${
-                              userVoted 
-                                ? 'font-semibold text-green-700' 
-                                : hasVoted
-                                ? 'text-gray-600'
-                                : 'text-gray-700'
-                            }`}>
-                              {option.text}
-                            </span>
-                          </div>
-                          {hasVoted && (
-                            <span className={`text-xs font-semibold ml-2 flex-shrink-0 ${
-                              userVoted ? 'text-green-700' : 'text-gray-600'
-                            }`}>
-                              {percentage}%
-                            </span>
-                          )}
-                        </div>
-                        {hasVoted && (
-                          <>
-                            <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2 overflow-hidden">
-                              <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${percentage}%` }}
-                                transition={{ duration: 0.5 }}
-                                className={`h-full ${
-                                  userVoted 
-                                    ? 'bg-gradient-to-r from-green-500 to-green-600' 
-                                    : 'bg-gradient-to-r from-blue-500 to-blue-600'
-                                }`}
-                              />
-                            </div>
-                            <p className={`text-xs mt-1.5 ${
-                              userVoted ? 'text-green-600 font-medium' : 'text-gray-500'
-                            }`}>
-                              {voteCount} {voteCount === 1 ? 'vote' : 'votes'}
-                            </p>
-                          </>
-                        )}
-                      </motion.button>
-                    );
-                  })}
-                </div>
-                {getTotalVotes() > 0 && (
-                  <p className="text-xs text-gray-500 mt-2 text-center">
-                    Total votes: {getTotalVotes()}
-                  </p>
-                )}
-              </motion.div>
-            )}
-
             {/* Close Button */}
             <motion.button
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
+              transition={{ delay: 1 }}
               onClick={onClose}
-              className="w-full bg-blue-600 text-white font-primary font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm mt-3"
+              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white font-primary font-semibold px-8 py-4 rounded-xl hover:shadow-2xl transition-all transform hover:scale-105 active:scale-95"
             >
               Got it!
             </motion.button>
+          </div>
+
+          {/* Decorative Elements */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-3xl">
+            {[...Array(8)].map((_, i) => (
+              <motion.div
+                key={i}
+                className="absolute w-2 h-2 rounded-full bg-blue-400 opacity-30"
+                style={{
+                  left: `${10 + (i % 4) * 25}%`,
+                  top: `${10 + Math.floor(i / 4) * 30}%`,
+                }}
+                animate={{
+                  y: [0, -30, 0],
+                  x: [0, Math.sin(i) * 20, 0],
+                  opacity: [0.3, 0.6, 0.3],
+                }}
+                transition={{
+                  duration: 4 + i * 0.5,
+                  repeat: Infinity,
+                  delay: i * 0.3,
+                  ease: 'easeInOut',
+                }}
+              />
+            ))}
           </div>
         </motion.div>
       </div>

@@ -21,8 +21,7 @@ export async function GET(request: NextRequest) {
 
     let query: any = {};
 
-    // Filter by userId for employee and HR (when viewing their own salary)
-    if (role === 'employee' || role === 'hr') {
+    if (role === 'employee') {
       query.userId = userId;
     }
 

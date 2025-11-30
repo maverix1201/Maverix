@@ -3,10 +3,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Leave from '@/models/Leave';
+import Notification from '@/models/Notification';
 import mongoose from 'mongoose';
 import { sendLeaveStatusNotificationToEmployee } from '@/utils/sendEmail';
 import { format } from 'date-fns';
-import { createNotification } from '@/lib/notificationManager';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,18 +44,6 @@ export async function PUT(
 
     if (!leave) {
       return NextResponse.json({ error: 'Leave not found' }, { status: 404 });
-    }
-
-    // Prevent HR from approving their own leaves - HR leaves must go to admin for approval
-    const userId = (session.user as any).id;
-    const leaveUserId = typeof leave.userId === 'object' && leave.userId?._id 
-      ? leave.userId._id.toString() 
-      : leave.userId.toString();
-    
-    if (role === 'hr' && leaveUserId === userId) {
-      return NextResponse.json({ 
-        error: 'HR cannot approve their own leave requests. Please contact admin for approval.' 
-      }, { status: 403 });
     }
 
     // Store previous status BEFORE updating
@@ -199,28 +187,27 @@ export async function PUT(
           ? 'Leave Request Approved' 
           : 'Leave Request Rejected';
         
-        const approverName = approver ? approver.name : 'MaveriX';
+        const leaveTypeName = leaveType ? (leaveType.name as string) : 'Leave';
         const daysText = updatedLeave.days === 0.5 
-          ? '0.5-day' 
+          ? '0.5 day' 
           : updatedLeave.days < 1 
-          ? `${updatedLeave.days.toFixed(2)}-day` 
-          : `${updatedLeave.days}-day`;
+          ? `${updatedLeave.days.toFixed(2)} day` 
+          : `${updatedLeave.days} ${updatedLeave.days === 1 ? 'day' : 'days'}`;
         
-        // Format date - if same day, show single date, otherwise show range
-        const startDate = format(new Date(updatedLeave.startDate), 'MMM dd, yyyy');
-        const endDate = format(new Date(updatedLeave.endDate), 'MMM dd, yyyy');
-        const dateText = startDate === endDate ? startDate : `${startDate} - ${endDate}`;
-        
-        const action = status === 'approved' ? 'approved' : 'declined';
-        const message = `${approverName} ${action} your ${daysText} leave for ${dateText}.`;
+        const message = status === 'approved'
+          ? `Your ${leaveTypeName} request for ${daysText} from ${format(new Date(updatedLeave.startDate), 'MMM dd, yyyy')} to ${format(new Date(updatedLeave.endDate), 'MMM dd, yyyy')} has been approved${approver ? ` by ${approver.name}` : ''}.`
+          : `Your ${leaveTypeName} request for ${daysText} from ${format(new Date(updatedLeave.startDate), 'MMM dd, yyyy')} to ${format(new Date(updatedLeave.endDate), 'MMM dd, yyyy')} has been rejected${approver ? ` by ${approver.name}` : ''}.${updatedLeave.rejectionReason ? ` Reason: ${updatedLeave.rejectionReason}` : ''}`;
 
-        await createNotification({
+        const notification = new Notification({
           userId: updatedLeave.userId,
           type: notificationType,
           title,
           message,
-          leaveId: (updatedLeave._id as mongoose.Types.ObjectId),
+          leaveId: updatedLeave._id,
+          dismissed: false,
         });
+
+        await notification.save();
       }
     } catch (notificationError) {
       // Log notification error but don't fail the request

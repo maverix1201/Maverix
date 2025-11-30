@@ -22,12 +22,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { name, role, designation, weeklyOff } = body;
-
-    // Debug logging
-    console.log('[Update User] Request body:', JSON.stringify(body));
-    console.log('[Update User] weeklyOff received:', weeklyOff);
+    const { name, role, designation } = await request.json();
 
     await connectDB();
 
@@ -50,32 +45,11 @@ export async function PUT(
     if (designation !== undefined) {
       user.designation = designation && designation.trim() !== '' ? designation.trim() : undefined;
     }
-    
-    // Always update weeklyOff - it should always be in the request body
-    // Process weeklyOff regardless of whether it's provided or not
-    const filteredWeeklyOff = weeklyOff !== undefined && Array.isArray(weeklyOff)
-      ? weeklyOff.filter(day => day && typeof day === 'string' && day.trim())
-      : (weeklyOff === undefined ? (user.weeklyOff || []) : []);
-    
-    user.weeklyOff = filteredWeeklyOff;
-    user.markModified('weeklyOff'); // Explicitly mark as modified for Mongoose
-    
-    console.log('[Update User] weeklyOff received:', weeklyOff);
-    console.log('[Update User] weeklyOff filtered:', filteredWeeklyOff);
-    console.log('[Update User] User weeklyOff before save:', user.weeklyOff);
 
-    const saveResult = await user.save();
-    console.log('[Update User] Save result weeklyOff:', saveResult.weeklyOff);
+    await user.save();
     
     // Reload user to ensure all fields are properly saved
-    const updatedUser = await User.findById(params.id)
-      .select('_id name email role designation profileImage mobileNumber emailVerified approved weeklyOff createdAt updatedAt')
-      .lean();
-
-    console.log('[Update User] Updated user weeklyOff from DB:', updatedUser?.weeklyOff);
-    console.log('[Update User] Updated user weeklyOff type:', typeof updatedUser?.weeklyOff);
-    console.log('[Update User] Updated user weeklyOff isArray:', Array.isArray(updatedUser?.weeklyOff));
-    console.log('[Update User] Updated user (full):', JSON.stringify(updatedUser, null, 2));
+    const updatedUser = await User.findById(params.id).select('-password').lean();
 
     return NextResponse.json({
       message: 'User updated successfully',

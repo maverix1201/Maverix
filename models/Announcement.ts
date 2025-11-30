@@ -9,17 +9,6 @@ export interface IAnnouncement extends Document {
     userId: mongoose.Types.ObjectId;
     viewCount: number;
   }>;
-  poll?: {
-    question: string;
-    options: Array<{
-      text: string;
-      votes: Array<{
-        userId: mongoose.Types.ObjectId;
-        votedAt: Date;
-      }>;
-    }>;
-    createdAt: Date;
-  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -63,40 +52,6 @@ const AnnouncementSchema: Schema = new Schema(
         },
       ],
       default: [],
-    },
-    poll: {
-      question: {
-        type: String,
-        trim: true,
-        maxlength: 500,
-      },
-      options: [
-        {
-          text: {
-            type: String,
-            required: true,
-            trim: true,
-            maxlength: 200,
-          },
-          votes: [
-            {
-              userId: {
-                type: Schema.Types.ObjectId,
-                ref: 'User',
-                required: true,
-              },
-              votedAt: {
-                type: Date,
-                default: Date.now,
-              },
-            },
-          ],
-        },
-      ],
-      createdAt: {
-        type: Date,
-        default: Date.now,
-      },
     },
   },
   {

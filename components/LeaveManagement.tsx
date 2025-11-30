@@ -845,12 +845,12 @@ export default function LeaveManagement({
 
       {/* Reason View Modal */}
       {reasonModal.isOpen && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-6 w-full max-w-2xl border border-white/50"
+            className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl"
           >
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-primary font-bold text-gray-800">Leave Reason</h2>

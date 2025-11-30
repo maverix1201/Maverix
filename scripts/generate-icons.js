@@ -23,23 +23,23 @@ try {
   process.exit(1);
 }
 
-const sourceIcon = path.join(__dirname, '../public/assets/mobileicon.jpg');
-const splashImageUrl = 'https://static.vecteezy.com/system/resources/previews/028/586/346/large_2x/photography-studio-backdrop-for-a-portrait-abstract-red-orange-grunge-wallpaper-muslin-fabric-texture-for-studio-background-photo.jpg';
+const sourceIcon = path.join(__dirname, '../public/assets/maverixicon.png');
 const iconsDir = path.join(__dirname, '../public/icons');
 
 // ============================================
 // CUSTOMIZATION SETTINGS - Edit these values
 // ============================================
 
-// Splash screen background color (RGB values 0-255) - Only used as fallback
+// Splash screen background color (RGB values 0-255)
 const SPLASH_BACKGROUND_COLOR = { r: 99, g: 102, b: 241, alpha: 1 }; // Default: #6366f1 (indigo)
 
-// Icon size on splash screen (as percentage of screen height) - Only used if splash image fails
+// Icon size on splash screen (as percentage of screen height)
+// Options: 0.2 (20% - small), 0.3 (30% - default), 0.4 (40% - large), 0.5 (50% - very large)
 const SPLASH_ICON_SIZE_PERCENT = 0.3; // 30% of screen height
 
 // Icon background color (for icons with transparency)
 // Set to null for transparent background, or use { r, g, b, alpha }
-const ICON_BACKGROUND_COLOR = null; // null = transparent
+const ICON_BACKGROUND_COLOR = null; // null = transparent, or { r: 255, g: 255, b: 255, alpha: 0 }
 
 // ============================================
 // END CUSTOMIZATION SETTINGS
@@ -72,7 +72,7 @@ const splashSizes = [
 async function generateIcons() {
   if (!fs.existsSync(sourceIcon)) {
     console.error(`Source icon not found: ${sourceIcon}`);
-    console.log('Please ensure mobileicon.jpg exists in public/assets/');
+    console.log('Please ensure maverixicon.png exists in public/assets/');
     process.exit(1);
   }
 
@@ -96,48 +96,36 @@ async function generateIcons() {
     }
   }
 
-  // Generate splash screens using the splash image URL
+  // Generate splash screens
   console.log('\nGenerating splash screens...\n');
-  
-  // Download splash image first
-  let splashImageBuffer;
-  try {
-    console.log('Downloading splash screen image...');
-    const https = require('https');
-    const http = require('http');
-    
-    splashImageBuffer = await new Promise((resolve, reject) => {
-      const imageUrl = new URL(splashImageUrl);
-      const client = imageUrl.protocol === 'https:' ? https : http;
-      
-      client.get(imageUrl.href, (res) => {
-        if (res.statusCode !== 200) {
-          reject(new Error(`Failed to download image: ${res.statusCode}`));
-          return;
-        }
-        
-        const chunks = [];
-        res.on('data', (chunk) => chunks.push(chunk));
-        res.on('end', () => resolve(Buffer.concat(chunks)));
-        res.on('error', reject);
-      }).on('error', reject);
-    });
-    
-    console.log('✓ Splash image downloaded');
-  } catch (error) {
-    console.error('✗ Failed to download splash image, using fallback:', error.message);
-    // Fallback to source icon if download fails
-    splashImageBuffer = await sharp(sourceIcon).toBuffer();
-  }
-
   for (const splash of splashSizes) {
     try {
-      // Use the splash image as background, resize to fit splash screen dimensions
-      await sharp(splashImageBuffer)
-        .resize(splash.width, splash.height, {
-          fit: 'cover', // Cover the entire splash screen
-          position: 'center'
+      // Create a canvas with the splash size
+      const canvas = sharp({
+        create: {
+          width: splash.width,
+          height: splash.height,
+          channels: 4,
+          background: SPLASH_BACKGROUND_COLOR
+        }
+      });
+
+      // Resize icon to fit in center (customizable percentage)
+      const iconSize = Math.floor(splash.height * SPLASH_ICON_SIZE_PERCENT);
+      const icon = await sharp(sourceIcon)
+        .resize(iconSize, iconSize, {
+          fit: 'contain',
+          background: ICON_BACKGROUND_COLOR || { r: 255, g: 255, b: 255, alpha: 0 }
         })
+        .toBuffer();
+
+      // Composite icon onto canvas
+      await canvas
+        .composite([{
+          input: icon,
+          top: Math.floor((splash.height - iconSize) / 2),
+          left: Math.floor((splash.width - iconSize) / 2)
+        }])
         .png()
         .toFile(path.join(iconsDir, splash.name));
       

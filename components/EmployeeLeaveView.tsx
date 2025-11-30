@@ -556,11 +556,11 @@ export default function EmployeeLeaveView({ initialLeaves, onLeavesUpdated }: Em
 
       {/* Request Leave Modal */}
       {showRequestModal && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/50 p-4 w-full max-w-md my-4"
+            className="bg-white/90 backdrop-blur-xl rounded-xl shadow-2xl border border-white/20 p-4 w-full max-w-md my-4"
           >
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-primary font-bold text-gray-800">Request Leave</h2>

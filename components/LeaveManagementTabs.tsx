@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Check, X, Calendar, Clock, Trash2, Search, Filter, Users } from 'lucide-react';
 import { format } from 'date-fns';
-import { useSession } from 'next-auth/react';
 import { useToast } from '@/contexts/ToastContext';
 import LeaveManagement from './LeaveManagement';
 import AllottedLeavesList from './AllottedLeavesList';
@@ -48,7 +47,6 @@ interface LeaveManagementTabsProps {
 }
 
 export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManagementTabsProps) {
-  const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState<'requests' | 'types' | 'allot'>('requests');
   const [leaves, setLeaves] = useState(initialLeaves);
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
@@ -82,7 +80,7 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
     fetchLeaveTypes();
     fetchEmployees();
     fetchLeaves();
-  }, [session]);
+  }, []);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -109,10 +107,7 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
 
   const fetchLeaves = async () => {
     try {
-      // For admin and HR, fetch all leaves (including allotted leaves) using ?all=true
-      // This ensures the "Allot Leave" tab shows all allotted leaves
-      const url = role === 'admin' || role === 'hr' ? '/api/leave?all=true' : '/api/leave';
-      const res = await fetch(url);
+      const res = await fetch('/api/leave');
       const data = await res.json();
       setLeaves(data.leaves || []);
     } catch (err) {
@@ -134,16 +129,7 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
     try {
       const res = await fetch('/api/users');
       const data = await res.json();
-      const currentUserId = (session?.user as any)?.id;
-      // Include both employees and HR users (exclude only admin)
-      // If HR role, exclude the current HR user from the list
-      const filteredUsers = data.users?.filter((u: any) => {
-        if (u.role === 'admin') return false;
-        // If HR is viewing, exclude themselves from the list
-        if (role === 'hr' && u._id === currentUserId) return false;
-        return true;
-      }) || [];
-      setEmployees(filteredUsers);
+      setEmployees(data.users?.filter((u: any) => u.role === 'employee') || []);
     } catch (err) {
       console.error('Error fetching employees:', err);
     }
@@ -189,14 +175,6 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
   );
 
   const handleEditEmployee = (employeeId: string, employeeLeaves: any[]) => {
-    // Prevent HR from editing their own allotted leaves
-    if (role === 'hr') {
-      const currentUserId = (session?.user as any)?.id;
-      if (employeeId === currentUserId) {
-        toast.error('HR users cannot edit their own allotted leaves. Please contact an Admin.');
-        return;
-      }
-    }
     // Pre-fill the modal with employee and their leave types
     setEditingEmployeeId(employeeId);
     setEditingEmployeeLeaves(employeeLeaves);
@@ -373,35 +351,8 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
     }
   };
 
-  // Filter leaves - show leave requests (not allotted leaves)
-  // For HR role, filter out HR's own leave requests and other HR users' requests (only show employee requests)
-  const leaveRequests = useMemo(() => {
-    if (!leaves || leaves.length === 0) return [];
-    
-    return leaves.filter((leave) => {
-      if (leave.allottedBy) return false; // Exclude allotted leaves
-      
-      // For HR role, only show employee leave requests (exclude HR users' requests)
-      if (role === 'hr' && session?.user) {
-        const userId = typeof leave.userId === 'object' && leave.userId?._id 
-          ? leave.userId._id.toString() 
-          : leave.userId.toString();
-        const currentUserId = (session.user as any)?.id;
-        
-        // Exclude HR's own leave requests
-        if (userId === currentUserId) return false;
-        
-        // Check if the user is an employee by checking the employees list
-        // If the user is in the employees list, they're an employee (not HR)
-        if (employees && employees.length > 0) {
-          const isEmployee = employees.some((emp: any) => emp._id === userId);
-          if (!isEmployee) return false; // Exclude if not in employees list (likely HR or admin)
-        }
-      }
-      
-      return true;
-    });
-  }, [leaves, role, session, employees]);
+  // Filter leaves - show all leave requests (not allotted leaves)
+  const leaveRequests = leaves.filter((leave) => !leave.allottedBy);
 
   return (
     <div>
@@ -519,8 +470,6 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
             employees={employees} 
             onRefresh={fetchLeaves}
             onEditEmployee={handleEditEmployee}
-            currentUserId={(session?.user as any)?.id}
-            currentUserRole={role}
           />
         </div>
       )}

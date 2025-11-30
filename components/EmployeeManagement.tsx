@@ -18,7 +18,6 @@ interface Employee {
   emailVerified: boolean;
   approved?: boolean;
   profileImage?: string;
-  weeklyOff?: string[];
   createdAt?: string;
 }
 
@@ -28,13 +27,7 @@ interface EmployeeManagementProps {
 }
 
 export default function EmployeeManagement({ initialEmployees, canChangeRole = true }: EmployeeManagementProps) {
-  // Ensure weeklyOff is always an array for initial employees
-  const [employees, setEmployees] = useState(
-    initialEmployees.map((emp) => ({
-      ...emp,
-      weeklyOff: Array.isArray(emp.weeklyOff) ? emp.weeklyOff : [],
-    }))
-  );
+  const [employees, setEmployees] = useState(initialEmployees);
   const [showModal, setShowModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formData, setFormData] = useState({
@@ -42,7 +35,6 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
     email: '',
     role: 'employee' as 'admin' | 'hr' | 'employee',
     designation: '',
-    weeklyOff: [] as string[],
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -64,11 +56,10 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
         email: employee.email,
         role: employee.role,
         designation: employee.designation || '',
-        weeklyOff: employee.weeklyOff || [],
       });
     } else {
       setEditingEmployee(null);
-      setFormData({ name: '', email: '', role: 'employee', designation: '', weeklyOff: [] });
+      setFormData({ name: '', email: '', role: 'employee', designation: '' });
     }
     setShowModal(true);
     setError('');
@@ -77,7 +68,7 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingEmployee(null);
-    setFormData({ name: '', email: '', role: 'employee', designation: '', weeklyOff: [] });
+    setFormData({ name: '', email: '', role: 'employee', designation: '' });
     setError('');
   };
 
@@ -93,17 +84,9 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
       const method = editingEmployee ? 'PUT' : 'POST';
 
       // Don't send role if HR cannot change roles
-      const requestBody: any = canChangeRole 
-        ? { ...formData } 
+      const requestBody = canChangeRole 
+        ? formData 
         : { ...formData, role: editingEmployee ? editingEmployee.role : 'employee' };
-
-      // Ensure weeklyOff is always an array and is explicitly included
-      requestBody.weeklyOff = Array.isArray(formData.weeklyOff) ? formData.weeklyOff : [];
-      
-      // Debug logging
-      console.log('[EmployeeManagement] Submitting form data:', formData);
-      console.log('[EmployeeManagement] Request body:', requestBody);
-      console.log('[EmployeeManagement] weeklyOff being sent:', requestBody.weeklyOff);
 
       const res = await fetch(url, {
         method,
@@ -119,44 +102,18 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
         return;
       }
 
-      // Log the response to see what was returned
-      console.log('[EmployeeManagement] Update response:', data);
-      if (data.user) {
-        console.log('[EmployeeManagement] Updated user weeklyOff:', data.user.weeklyOff);
-      }
-
-      // Update the employee in the local state immediately with the response data
-      if (editingEmployee && data.user) {
-        setEmployees((prevEmployees) =>
-          prevEmployees.map((emp) =>
-            emp._id === editingEmployee._id
-              ? {
-                  ...emp,
-                  ...data.user,
-                  weeklyOff: Array.isArray(data.user.weeklyOff) ? data.user.weeklyOff : [],
-                }
-              : emp
-          )
-        );
-        console.log('[EmployeeManagement] Updated local state with response data');
-      }
-
-      // Refresh employee list to ensure consistency (including weeklyOff)
-      try {
-        await fetchEmployees();
-        console.log('[EmployeeManagement] Employee list refreshed after update');
-      } catch (fetchErr) {
-        console.error('Error refreshing employee list:', fetchErr);
-        // If fetch fails, still show success but log the error
-        // The employee should still be updated in the database
-      }
-      
       if (editingEmployee) {
+        setEmployees(
+          employees.map((emp) => (emp._id === editingEmployee._id ? data.user : emp))
+        );
         toast.success('Employee updated successfully');
       } else {
+        setEmployees([...employees, data.user]);
         toast.success('Employee added successfully');
       }
-      
+
+      // Refresh employee list to ensure consistency
+      fetchEmployees();
       handleCloseModal();
       setLoading(false);
     } catch (err: any) {
@@ -215,27 +172,10 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
         },
       });
       const data = await res.json();
-      if (res.ok && data.users && Array.isArray(data.users)) {
-        // Filter out admin users (API already filters, but double-check for safety)
-        // Ensure weeklyOff is always an array and preserve all other fields
-        const filteredUsers = data.users
-          .filter((u: Employee) => u.role !== 'admin')
-          .map((u: Employee) => {
-            const weeklyOffArray = Array.isArray(u.weeklyOff) ? u.weeklyOff : [];
-            console.log(`[EmployeeManagement] Employee ${u.name} weeklyOff:`, weeklyOffArray);
-            return {
-              ...u,
-              weeklyOff: weeklyOffArray,
-              // Ensure all required fields are present
-              emailVerified: u.emailVerified ?? false,
-              approved: u.approved ?? false,
-            };
-          });
-        console.log('[EmployeeManagement] Fetched employees with weeklyOff:', filteredUsers.map((u: Employee) => ({ name: u.name, weeklyOff: u.weeklyOff })));
+      if (res.ok && data.users) {
+        // Filter out admin users if needed (same as initial filter)
+        const filteredUsers = data.users.filter((u: Employee) => u.role !== 'admin');
         setEmployees(filteredUsers);
-      } else {
-        console.error('Failed to fetch employees:', data.error || 'Unknown error');
-        // Don't clear employees on error, keep existing list
       }
     } catch (err) {
       console.error('Error fetching employees:', err);
@@ -332,9 +272,6 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
                   Designation
                 </th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-primary">
-                  Weekly Off
-                </th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-primary">
                   Email Status
                 </th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-primary">
@@ -365,7 +302,7 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
                         {employeesOnLeaveToday.includes(employee._id) && (
                           <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-orange-100 text-orange-800 flex items-center gap-1 font-secondary">
                             <Calendar className="w-3 h-3" />
-                            On Leave
+                            On Leave Today
                           </span>
                         )}
                       </div>
@@ -382,27 +319,6 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
                   <td className="px-4 py-3 whitespace-nowrap">
                     <div className="text-sm text-gray-900 font-secondary">
                       {employee.designation || <span className="text-gray-400 italic">Not set</span>}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1.5">
-                      {(() => {
-                        const weeklyOffArray = Array.isArray(employee.weeklyOff) ? employee.weeklyOff : [];
-                        console.log(`[Display] Employee ${employee.name} weeklyOff:`, weeklyOffArray, 'Type:', typeof employee.weeklyOff);
-                        if (weeklyOffArray.length > 0) {
-                          return weeklyOffArray.map((day: string) => (
-                            <span
-                              key={day}
-                              className="px-2.5 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-700 font-secondary whitespace-nowrap"
-                              title={day}
-                            >
-                              {day.substring(0, 3)}
-                            </span>
-                          ));
-                        } else {
-                          return <span className="text-xs text-gray-400 italic font-secondary">Not set</span>;
-                        }
-                      })()}
                     </div>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
@@ -466,11 +382,11 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-5 w-full max-w-md border border-white/50"
+            className="bg-white rounded-lg shadow-xl p-5 w-full max-w-md"
           >
             <h2 className="text-xl font-primary font-bold text-gray-800 mb-4">
               {editingEmployee ? 'Edit Employee' : 'Add Employee'}
@@ -541,32 +457,6 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
                   placeholder="e.g., Software Engineer, HR Manager, etc."
                   className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-white"
                 />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5 font-secondary">Weekly Off</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day) => (
-                    <label
-                      key={day}
-                      className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.weeklyOff.includes(day)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFormData({ ...formData, weeklyOff: [...formData.weeklyOff, day] });
-                          } else {
-                            setFormData({ ...formData, weeklyOff: formData.weeklyOff.filter(d => d !== day) });
-                          }
-                        }}
-                        className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
-                      />
-                      <span className="text-sm text-gray-700 font-secondary">{day}</span>
-                    </label>
-                  ))}
-                </div>
               </div>
 
               <div className="flex gap-2 pt-3">

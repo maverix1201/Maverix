@@ -42,7 +42,7 @@ export default function BirthdayCelebration({ userName, userImage, onClose }: Bi
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         />
 
         {/* Confetti */}
@@ -82,7 +82,7 @@ export default function BirthdayCelebration({ userName, userImage, onClose }: Bi
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.5, y: 50 }}
           transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-          className="relative bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 md:p-12 max-w-md w-full mx-4 border border-white/50"
+          className="relative bg-gradient-to-br from-pink-500 via-rose-500 to-orange-500 rounded-2xl shadow-2xl p-8 md:p-12 max-w-md w-full mx-4 border-4 border-white/30"
         >
           {/* Sparkle decorations */}
           <motion.div
@@ -120,14 +120,14 @@ export default function BirthdayCelebration({ userName, userImage, onClose }: Bi
                     repeat: Infinity,
                     repeatDelay: 1,
                   }}
-                  className="bg-gradient-to-br from-pink-400 to-rose-400 p-4 rounded-full shadow-lg"
+                  className="bg-yellow-400 p-4 rounded-full shadow-lg"
                 >
-                  <Gift className="w-12 h-12 text-white" />
+                  <Gift className="w-12 h-12 text-yellow-900" />
                 </motion.div>
                 <motion.div
                   animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5] }}
                   transition={{ duration: 2, repeat: Infinity }}
-                  className="absolute inset-0 bg-gradient-to-br from-pink-400 to-rose-400 rounded-full blur-xl"
+                  className="absolute inset-0 bg-yellow-400 rounded-full blur-xl"
                 />
               </div>
             </motion.div>
@@ -137,7 +137,7 @@ export default function BirthdayCelebration({ userName, userImage, onClose }: Bi
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="text-4xl md:text-5xl font-primary font-bold bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 bg-clip-text text-transparent mb-4"
+              className="text-4xl md:text-5xl font-primary font-bold text-white mb-4"
             >
               🎉 Happy Birthday! 🎉
             </motion.h1>
@@ -153,14 +153,14 @@ export default function BirthdayCelebration({ userName, userImage, onClose }: Bi
                   name={userName}
                   image={userImage}
                   size="xl"
-                  className="ring-4 ring-pink-200 shadow-2xl"
+                  className="ring-4 ring-white/50 shadow-2xl"
                 />
                 <motion.div
                   animate={{ rotate: 360 }}
                   transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
                   className="absolute -top-2 -right-2"
                 >
-                  <PartyPopper className="w-8 h-8 text-pink-500" />
+                  <PartyPopper className="w-8 h-8 text-yellow-300" />
                 </motion.div>
               </div>
             </motion.div>
@@ -169,7 +169,7 @@ export default function BirthdayCelebration({ userName, userImage, onClose }: Bi
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.8 }}
-              className="text-xl md:text-2xl font-primary font-semibold text-gray-800 mb-2"
+              className="text-xl md:text-2xl font-primary font-semibold text-white mb-2"
             >
               {userName}
             </motion.p>
@@ -178,7 +178,7 @@ export default function BirthdayCelebration({ userName, userImage, onClose }: Bi
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 1 }}
-              className="text-gray-600 text-base md:text-lg font-secondary mb-8"
+              className="text-white/90 text-base md:text-lg font-secondary mb-8"
             >
               Wishing you a day filled with joy, laughter, and wonderful moments! 🎂✨
             </motion.p>
@@ -189,7 +189,7 @@ export default function BirthdayCelebration({ userName, userImage, onClose }: Bi
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1.2 }}
               onClick={onClose}
-              className="bg-gradient-to-r from-pink-500 to-rose-500 text-white font-primary font-semibold px-8 py-3 rounded-full hover:from-pink-600 hover:to-rose-600 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+              className="bg-white text-pink-600 font-primary font-semibold px-8 py-3 rounded-full hover:bg-white/90 transition-colors shadow-lg hover:shadow-xl transform hover:scale-105"
             >
               Thank You! 🎊
             </motion.button>

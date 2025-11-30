@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   DollarSign,
@@ -60,7 +59,6 @@ export default function FinanceManagement({
   initialFinances,
   canEdit,
 }: FinanceManagementProps) {
-  const { data: session } = useSession();
   const [finances, setFinances] = useState<Finance[]>(initialFinances);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [showModal, setShowModal] = useState(false);
@@ -76,19 +74,6 @@ export default function FinanceManagement({
   const employeeDropdownRef = useRef<HTMLDivElement>(null);
   const toast = useToast();
 
-  // Get current user info
-  const currentUserId = (session?.user as any)?.id;
-  const currentUserRole = (session?.user as any)?.role;
-
-  // Check if HR is trying to edit/delete their own finance record
-  const isOwnFinanceRecord = (finance: Finance) => {
-    if (currentUserRole !== 'hr') return false;
-    const financeUserId = typeof finance.userId === 'object' && finance.userId?._id
-      ? finance.userId._id.toString()
-      : finance.userId.toString();
-    return financeUserId === currentUserId;
-  };
-
   const [formData, setFormData] = useState({
     userId: '',
     baseSalary: '',
@@ -101,26 +86,11 @@ export default function FinanceManagement({
   });
 
   const fetchEmployees = useCallback(async () => {
-    // Include both employees and HR users (exclude only admin)
     try {
       const res = await fetch('/api/users');
       const data = await res.json();
       if (res.ok) {
-        // Get current user session to filter out HR from their own list
-        const sessionRes = await fetch('/api/auth/session');
-        const sessionData = await sessionRes.json();
-        const currentUserId = sessionData?.user?.id;
-        const userRole = sessionData?.user?.role;
-        
-        // Filter: exclude admin, and if HR, exclude themselves
-        const filteredUsers = data.users?.filter((u: any) => {
-          if (u.role === 'admin') return false;
-          // If HR is viewing, exclude themselves from the list
-          if (userRole === 'hr' && u._id === currentUserId) return false;
-          return true;
-        }) || [];
-        
-        setEmployees(filteredUsers);
+        setEmployees(data.users || []);
       }
     } catch (err) {
       console.error('Failed to fetch employees:', err);
@@ -180,12 +150,6 @@ export default function FinanceManagement({
   };
 
   const handleOpenEditModal = (finance: Finance) => {
-    // Prevent HR from editing their own finance record
-    if (isOwnFinanceRecord(finance)) {
-      toast.error('HR users cannot edit their own salary. Please contact an Admin.');
-      return;
-    }
-    
     setEditingFinance(finance);
     setEditFormData({
       baseSalary: finance.baseSalary.toString(),
@@ -206,12 +170,6 @@ export default function FinanceManagement({
   };
 
   const handleOpenDeleteModal = (finance: Finance) => {
-    // Prevent HR from deleting their own finance record
-    if (isOwnFinanceRecord(finance)) {
-      toast.error('HR users cannot delete their own salary. Please contact an Admin.');
-      return;
-    }
-    
     setDeletingFinance(finance);
     setShowDeleteModal(true);
   };
@@ -266,12 +224,6 @@ export default function FinanceManagement({
     e.preventDefault();
     if (!editingFinance) return;
 
-    // Prevent HR from editing their own finance record
-    if (isOwnFinanceRecord(editingFinance)) {
-      toast.error('HR users cannot edit their own salary. Please contact an Admin.');
-      return;
-    }
-
     setLoading(true);
 
     try {
@@ -311,14 +263,6 @@ export default function FinanceManagement({
 
   const handleDelete = async () => {
     if (!deletingFinance) return;
-
-    // Prevent HR from deleting their own finance record
-    if (isOwnFinanceRecord(deletingFinance)) {
-      toast.error('HR users cannot delete their own salary. Please contact an Admin.');
-      setDeleteLoading(false);
-      handleCloseDeleteModal();
-      return;
-    }
 
     setDeleteLoading(true);
 
@@ -501,7 +445,7 @@ export default function FinanceManagement({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {canEdit && !isOwnFinanceRecord(finance) && (
+                    {canEdit && (
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => handleOpenEditModal(finance)}
@@ -576,12 +520,12 @@ export default function FinanceManagement({
       {canEdit && (
         <AnimatePresence>
           {showModal && (
-            <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
               <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/50 p-5 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+                className="bg-white/90 backdrop-blur-xl rounded-xl shadow-2xl border border-white/50 p-5 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
               >
                 <div className="flex items-center justify-between mb-5">
                   <h2 className="text-xl font-primary font-bold text-gray-800">
@@ -765,12 +709,12 @@ export default function FinanceManagement({
       {canEdit && (
         <AnimatePresence>
           {showEditModal && editingFinance && (
-            <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
               <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/50 p-5 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+                className="bg-white/90 backdrop-blur-xl rounded-xl shadow-2xl border border-white/50 p-5 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
               >
                 <div className="flex items-center justify-between mb-5">
                   <h2 className="text-xl font-primary font-bold text-gray-800">

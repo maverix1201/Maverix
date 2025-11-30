@@ -19,11 +19,11 @@ import {
   UserCog,
   UserCircle,
   MessageSquare,
-  CalendarDays,
 } from 'lucide-react';
 import Logo from './Logo';
 import UserAvatar from './UserAvatar';
 import LoadingDots from './LoadingDots';
+import LeaveNotificationAlert from './LeaveNotificationAlert';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -162,7 +162,9 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
+      {role === 'employee' && <LeaveNotificationAlert />}
+      <div className="min-h-screen bg-gray-50">
         {/* Mobile sidebar backdrop */}
         {sidebarOpen && (
           <div
@@ -186,101 +188,26 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
           </div>
 
           <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-            {menu
-              .filter((item) => item.name !== 'Profile') // Exclude Profile from main menu
-              .map((item) => {
-                const Icon = item.icon;
-                const isActive = pathname === item.href;
-                return (
-                  <motion.a
-                    key={item.name}
-                    href={item.href}
-                    whileHover={{ x: 2 }}
-                    className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${
-                      isActive
-                        ? 'bg-primary-100 text-primary font-medium'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span className="font-secondary">{item.name}</span>
-                  </motion.a>
-                );
-              })}
-            
-            {/* Separator with Personalize section */}
-            <div className="pt-3 mt-3 border-t border-gray-200">
-              <p className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider font-secondary mb-1">
-                Personalize
-              </p>
-              {menu
-                .filter((item) => item.name === 'Profile')
-                .map((item) => {
-                  const Icon = item.icon;
-                  const isActive = pathname === item.href;
-                  return (
-                    <motion.a
-                      key={item.name}
-                      href={item.href}
-                      whileHover={{ x: 2 }}
-                      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${
-                        isActive
-                          ? 'bg-primary-100 text-primary font-medium'
-                          : 'text-gray-700 hover:bg-gray-100'
-                      }`}
-                      onClick={() => setSidebarOpen(false)}
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span className="font-secondary">{item.name}</span>
-                    </motion.a>
-                  );
-                })}
-              {/* Add Leave Request and Attendance for HR */}
-              {role === 'hr' && (
-                <>
-                  <motion.a
-                    href="/hr/leave-request"
-                    whileHover={{ x: 2 }}
-                    className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${
-                      pathname === '/hr/leave-request'
-                        ? 'bg-primary-100 text-primary font-medium'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <CalendarDays className="w-4 h-4" />
-                    <span className="font-secondary">Leave Request</span>
-                  </motion.a>
-                  <motion.a
-                    href="/hr/my-attendance"
-                    whileHover={{ x: 2 }}
-                    className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${
-                      pathname === '/hr/my-attendance'
-                        ? 'bg-primary-100 text-primary font-medium'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <Clock className="w-4 h-4" />
-                    <span className="font-secondary">Attendance</span>
-                  </motion.a>
-                  <motion.a
-                    href="/hr/salary"
-                    whileHover={{ x: 2 }}
-                    className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${
-                      pathname === '/hr/salary'
-                        ? 'bg-primary-100 text-primary font-medium'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <DollarSign className="w-4 h-4" />
-                    <span className="font-secondary">Salary Slip</span>
-                  </motion.a>
-                </>
-              )}
-            </div>
+            {menu.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href;
+              return (
+                <motion.a
+                  key={item.name}
+                  href={item.href}
+                  whileHover={{ x: 2 }}
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${
+                    isActive
+                      ? 'bg-primary-100 text-primary font-medium'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="font-secondary">{item.name}</span>
+                </motion.a>
+              );
+            })}
           </nav>
 
           <div className="p-3 border-t">
@@ -381,7 +308,8 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
         {/* Page content */}
         <main className="bg-[#eef3ff] p-3 pb-16 lg:pb-4">{children}</main>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 

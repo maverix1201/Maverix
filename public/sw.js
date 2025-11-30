@@ -1,8 +1,7 @@
 // Service Worker for MM HRM PWA
 // Version: 1.0.0 - Auto-incremented on build
-// IMPORTANT: Update CACHE_NAME version to trigger update popup for users
 
-const CACHE_NAME = 'mm-hrm-v1.0.4'; // ⬅️ UPDATE THIS VERSION NUMBER to trigger update popup
+const CACHE_NAME = 'mm-hrm-v1.0.3'; // Updated to fix 404 errors for CSS/JS files
 const RUNTIME_CACHE = 'mm-hrm-runtime-v1.0.1';
 const OFFLINE_PAGE = '/offline.html';
 
@@ -29,9 +28,8 @@ self.addEventListener('install', (event) => {
         return cache.addAll(STATIC_ASSETS.map(url => new Request(url, { cache: 'reload' })));
       })
       .then(() => {
-        // Don't skip waiting - let the user choose when to update via popup
-        // The service worker will wait until user clicks "Update Now"
-        console.log('[Service Worker] Installed and waiting for activation');
+        // Force the waiting service worker to become the active service worker
+        return self.skipWaiting();
       })
       .catch((error) => {
         console.error('[Service Worker] Install failed:', error);
@@ -41,7 +39,7 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('[Service Worker] Activating...', CACHE_NAME);
+  console.log('[Service Worker] Activating...');
   
   event.waitUntil(
     caches.keys()
@@ -55,17 +53,6 @@ self.addEventListener('activate', (event) => {
             }
           })
         );
-      })
-      .then(() => {
-        // Notify all clients about the update
-        return self.clients.matchAll().then((clients) => {
-          clients.forEach((client) => {
-            client.postMessage({
-              type: 'SW_UPDATED',
-              cacheName: CACHE_NAME,
-            });
-          });
-        });
       })
       .then(() => {
         // Take control of all pages immediately

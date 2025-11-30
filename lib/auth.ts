@@ -142,31 +142,45 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      // Ensure session and session.user exist
-      if (!session) {
+      // If no token or no token.id, return null (user not authenticated)
+      if (!token || !token.id) {
         return null as any;
       }
       
+      // Ensure session exists
+      if (!session) {
+        session = {
+          user: {
+            id: '',
+            email: '',
+            name: '',
+            role: 'employee' as const,
+          },
+          expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        };
+      }
+      
+      // Ensure session.user exists
       if (!session.user) {
         session.user = {
-          id: token.id || '',
-          email: token.email || '',
-          name: token.name || '',
+          id: token.id as string || '',
+          email: token.email as string || '',
+          name: token.name as string || '',
           role: (token.role as 'admin' | 'hr' | 'employee') || 'employee',
         };
       }
       
-      // Ensure all required properties exist before assignment
-      if (token.id && typeof token.id === 'string') {
+      // Always set required properties from token
+      if (token.id) {
         (session.user as any).id = token.id;
       }
-      if (token.email && typeof token.email === 'string') {
-        session.user.email = token.email;
+      if (token.email) {
+        session.user.email = token.email as string;
       }
-      if (token.name && typeof token.name === 'string') {
-        session.user.name = token.name;
+      if (token.name) {
+        session.user.name = token.name as string;
       }
-      if (token.role && typeof token.role === 'string') {
+      if (token.role) {
         session.user.role = token.role as 'admin' | 'hr' | 'employee';
       }
       if (token.mobileNumber) {
@@ -174,6 +188,11 @@ export const authOptions: NextAuthOptions = {
       }
       if (token.approved !== undefined) {
         (session.user as any).approved = token.approved;
+      }
+      
+      // Ensure expires is set
+      if (!session.expires) {
+        session.expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
       }
       
       return session;
@@ -194,6 +213,7 @@ export const authOptions: NextAuthOptions = {
         sameSite: 'lax',
         path: '/',
         secure: process.env.NODE_ENV === 'production',
+        domain: process.env.NODE_ENV === 'production' ? undefined : undefined, // Let browser handle domain
         // Increase maxAge to match session maxAge
         maxAge: 30 * 24 * 60 * 60, // 30 days
       },

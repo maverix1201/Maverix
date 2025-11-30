@@ -42,14 +42,27 @@ function LoginForm() {
         return;
       }
 
-      // If signIn succeeded, wait for session and redirect
-      // Use a simple approach: wait a moment, then redirect to home
-      // The middleware will handle role-based redirects
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // If signIn succeeded, wait for session to be established
+      // Retry getting session with exponential backoff
+      let session = null;
+      let retries = 5;
       
-      // Try to get session to verify login was successful
-      const session = await getSession();
+      while (retries > 0 && !session) {
+        await new Promise(resolve => setTimeout(resolve, 300 * (6 - retries)));
+        
+        try {
+          session = await getSession();
+          if (session?.user) {
+            break;
+          }
+        } catch (err) {
+          console.error('Session fetch error:', err);
+        }
+        
+        retries--;
+      }
       
+      // If we have a session, redirect based on role
       if (session?.user && !hasRedirected.current) {
         hasRedirected.current = true;
         const role = (session.user as any)?.role;
@@ -66,15 +79,18 @@ function LoginForm() {
           redirectUrl = approved === false ? '/employee/waiting' : '/employee';
         }
         
-        // Use router.push for client-side navigation (no page reload)
-        router.push(redirectUrl);
-        router.refresh();
-      } else if (!hasRedirected.current) {
-        // Fallback: redirect to home, middleware will handle it
+        // Use window.location for reliable redirect in production
+        // This ensures cookies are properly sent
+        window.location.href = redirectUrl;
+        return;
+      }
+      
+      // Fallback: If no session after retries, redirect to home
+      // Middleware will handle authentication and redirect
+      if (!hasRedirected.current) {
         hasRedirected.current = true;
         const from = searchParams.get('from') || '/';
-        router.push(from);
-        router.refresh();
+        window.location.href = from;
       }
     } catch (err: any) {
       console.error('Login error:', err);

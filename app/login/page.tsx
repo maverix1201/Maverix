@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, Suspense, useEffect, useRef } from 'react';
-import { signIn, useSession, getSession } from 'next-auth/react';
+import { useState, Suspense, useRef } from 'react';
+import { signIn, getSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Mail, Lock, LogIn, Eye, EyeOff } from 'lucide-react';
@@ -11,42 +11,23 @@ import Logo from '@/components/Logo';
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, status, update } = useSession();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const redirectingRef = useRef(false);
-
-  // Handle redirect after successful login
-  useEffect(() => {
-    if (status === 'authenticated' && session?.user && !redirectingRef.current) {
-      redirectingRef.current = true;
-      const role = (session.user as any)?.role;
-      const approved = (session.user as any)?.approved;
-
-      if (!role) {
-        window.location.href = '/';
-        return;
-      }
-
-      // Redirect employees to waiting page only if explicitly not approved (false)
-      if (role === 'employee' && approved === false) {
-        window.location.href = '/employee/waiting';
-        return;
-      }
-
-      const from = searchParams.get('from') || `/${role}`;
-      window.location.href = from;
-    }
-  }, [session, status, searchParams]);
+  const hasRedirected = useRef(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent multiple submissions
+    if (loading || hasRedirected.current) {
+      return;
+    }
+    
     setError('');
     setLoading(true);
-    redirectingRef.current = false;
 
     try {
       const result = await signIn('credentials', {
@@ -61,56 +42,45 @@ function LoginForm() {
         return;
       }
 
-      // If signIn succeeded, manually refresh session and wait for it
-      // This is more reliable in production than relying on automatic updates
-      let sessionRetries = 8;
-      let sessionData = null;
-
-      while (sessionRetries > 0) {
-        try {
-          // Wait a bit for session to be established
-          await new Promise(resolve => setTimeout(resolve, 400));
-          
-          // Update session to trigger refresh
-          await update();
-          
-          // Try to get session
-          sessionData = await getSession();
-          
-          if (sessionData?.user) {
-            const role = (sessionData.user as any)?.role;
-            const approved = (sessionData.user as any)?.approved;
-
-            if (!role) {
-              window.location.href = '/';
-              return;
-            }
-
-            // Redirect employees to waiting page only if explicitly not approved (false)
-            if (role === 'employee' && approved === false) {
-              window.location.href = '/employee/waiting';
-              return;
-            }
-
-            const from = searchParams.get('from') || `/${role}`;
-            window.location.href = from;
-            return;
-          }
-        } catch (sessionError) {
-          console.error('Session fetch error:', sessionError);
+      // If signIn succeeded, wait for session and redirect
+      // Use a simple approach: wait a moment, then redirect to home
+      // The middleware will handle role-based redirects
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Try to get session to verify login was successful
+      const session = await getSession();
+      
+      if (session?.user && !hasRedirected.current) {
+        hasRedirected.current = true;
+        const role = (session.user as any)?.role;
+        const approved = (session.user as any)?.approved;
+        
+        // Determine redirect URL based on role
+        let redirectUrl = '/';
+        
+        if (role === 'admin') {
+          redirectUrl = '/admin';
+        } else if (role === 'hr') {
+          redirectUrl = '/hr';
+        } else if (role === 'employee') {
+          redirectUrl = approved === false ? '/employee/waiting' : '/employee';
         }
         
-        sessionRetries--;
+        // Use router.push for client-side navigation (no page reload)
+        router.push(redirectUrl);
+        router.refresh();
+      } else if (!hasRedirected.current) {
+        // Fallback: redirect to home, middleware will handle it
+        hasRedirected.current = true;
+        const from = searchParams.get('from') || '/';
+        router.push(from);
+        router.refresh();
       }
-
-      // If we still don't have a session after retries, use fallback redirect
-      // This ensures the user isn't stuck on the login page
-      const from = searchParams.get('from') || '/';
-      window.location.href = from;
     } catch (err: any) {
       console.error('Login error:', err);
       setError(err.message || 'An error occurred during login. Please try again.');
       setLoading(false);
+      hasRedirected.current = false;
     }
   };
 

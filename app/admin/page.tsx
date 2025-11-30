@@ -62,7 +62,7 @@ export default function AdminDashboard() {
     if (status === 'loading') return;
 
     if (status === 'unauthenticated') {
-      router.push('/login');
+      router.push('/');
       return;
     }
 
@@ -74,7 +74,7 @@ export default function AdminDashboard() {
         if (userRole === 'hr' || userRole === 'employee') {
           router.push('/employee');
         } else {
-          router.push('/login');
+          router.push('/');
         }
         return;
       }

@@ -85,7 +85,7 @@ function VerifyForm() {
       setLoading(false);
 
       setTimeout(() => {
-        router.push('/login');
+        router.push('/');
       }, 2000);
     } catch (err: any) {
       setError(err.message || 'An error occurred');
@@ -120,7 +120,7 @@ function VerifyForm() {
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Password Set Successfully!</h2>
-          <p className="text-gray-600 mb-6">Redirecting to login page...</p>
+          <p className="text-gray-600 mb-6">Redirecting to home page...</p>
         </motion.div>
       </div>
     );
@@ -140,10 +140,10 @@ function VerifyForm() {
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Verification Failed</h2>
           <p className="text-gray-600 mb-6">{error}</p>
           <Link
-            href="/signup"
+            href="/"
             className="text-primary hover:text-primary-dark font-medium"
           >
-            Back to Signup
+            Back to Home
           </Link>
         </motion.div>
       </div>

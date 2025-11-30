@@ -59,16 +59,6 @@ export default function LandingPage() {
                 transition={{ duration: 0.6, delay: 0.4 }}
                 className="flex sm:flex-row gap-4 justify-center items-center"
               >
-                <Link href="/signup">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="group px-6 py-3 bg-primary text-white rounded-lg font-semibold text-base shadow-lg hover:bg-primary-dark hover:shadow-xl transition-all duration-300 flex items-center gap-2"
-                  >
-                    Get Started
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </motion.button>
-                </Link>
                 <Link href="/login">
                   <motion.button
                     whileHover={{ scale: 1.05 }}

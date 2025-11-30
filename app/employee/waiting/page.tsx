@@ -19,7 +19,7 @@ export default function EmployeeWaitingPage() {
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
-      await signOut({ callbackUrl: '/login', redirect: true });
+      await signOut({ callbackUrl: '/', redirect: true });
     } catch (error) {
       console.error('Logout error:', error);
       setLoggingOut(false);
@@ -35,7 +35,7 @@ export default function EmployeeWaitingPage() {
     if (status === 'loading') return;
 
     if (status === 'unauthenticated') {
-      router.push('/login');
+      router.push('/');
       return;
     }
 

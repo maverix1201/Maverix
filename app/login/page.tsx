@@ -2,7 +2,7 @@
 
 import { useState, Suspense, useEffect } from 'react';
 import { signIn, useSession } from 'next-auth/react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Mail, Lock, LogIn, Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
@@ -10,7 +10,6 @@ import Logo from '@/components/Logo';
 
 function LoginForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -169,12 +168,9 @@ function LoginForm() {
         </form>
 
         <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
-            Don&apos;t have an account?{' '}
-            <Link href="/signup" className="text-primary hover:text-primary-dark font-medium">
-              Sign up
-            </Link>
-          </p>
+          <Link href="/" className="text-sm text-gray-600 hover:text-primary transition-colors font-secondary">
+            ← Back to Home
+          </Link>
         </div>
       </motion.div>
     </div>

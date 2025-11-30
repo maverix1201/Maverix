@@ -69,7 +69,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
     if (status === 'loading') return; // Still loading session
     
     if (status === 'unauthenticated') {
-      router.push('/login');
+      router.push('/');
       return;
     }
 
@@ -85,7 +85,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
         } else if (userRole === 'employee') {
           router.push('/employee');
         } else {
-          router.push('/login');
+          router.push('/');
         }
       }
     }
@@ -125,8 +125,12 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
   const menu = role === 'admin' ? adminMenu : role === 'hr' ? hrMenu : employeeMenu;
 
   const handleLogout = async () => {
-    await signOut({ redirect: false });
-    router.push('/login');
+    // Immediately redirect to landing page without showing loading state
+    window.location.href = '/';
+    // Sign out in the background
+    signOut({ redirect: false }).catch((error) => {
+      console.error('Logout error:', error);
+    });
   };
 
   // Get user initials for avatar fallback

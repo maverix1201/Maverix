@@ -53,7 +53,7 @@ export async function sendVerificationEmail(email: string, token: string, name?:
   const mailOptions = {
     from: getFromEmail(),
     to: email,
-    subject: 'Verify Your Email - MM HRM',
+    subject: 'Verify Your Email - MaveriX',
     html: `
       <!DOCTYPE html>
 <html lang="en">
@@ -147,7 +147,7 @@ export async function sendPasswordResetEmail(email: string, token: string) {
   const mailOptions = {
     from: getFromEmail(),
     to: email,
-    subject: 'Reset Your Password - MM HRM',
+    subject: 'Reset Your Password - MaveriX',
     html: `
       <!DOCTYPE html>
       <html>
@@ -158,7 +158,7 @@ export async function sendPasswordResetEmail(email: string, token: string) {
         </head>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="color: white; margin: 0;">MM HRM</h1>
+            <h1 style="color: white; margin: 0;">MaveriX</h1>
           </div>
           <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
             <h2 style="color: #333; margin-top: 0;">Reset Your Password</h2>
@@ -203,7 +203,7 @@ export async function sendLeaveRequestNotificationToHR(
   const mailOptions = {
     from: getFromEmail(),
     to: hrEmails.join(', '),
-    subject: `New Leave Request from ${data.employeeName} - MM HRM`,
+    subject: `New Leave Request from ${data.employeeName} - MaveriX`,
     html: `
       <!DOCTYPE html>
       <html lang="en">
@@ -319,7 +319,7 @@ export async function sendLeaveStatusNotificationToEmployee(
   const mailOptions = {
     from: getFromEmail(),
     to: data.employeeEmail,
-    subject: `Leave Request ${statusText} - MM HRM`,
+    subject: `Leave Request ${statusText} - MaveriX`,
     html: `
       <!DOCTYPE html>
       <html lang="en">

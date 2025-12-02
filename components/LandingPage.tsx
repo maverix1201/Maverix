@@ -87,7 +87,7 @@ export default function LandingPage() {
         {/* Footer 
         <footer className="mt-[150px] z-10 px-6 py-6 border-t border-gray-200 bg-white/50 backdrop-blur-sm">
           <div className="max-w-7xl mx-auto text-center text-gray-600">
-            <p className="text-sm font-secondary">&copy; 2024 MM HRM. All rights reserved.</p>
+              <p className="text-sm font-secondary">&copy; 2024 MaveriX. All rights reserved.</p>
           </div>
         </footer>*/}
       </div>

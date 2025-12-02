@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Check, X, Calendar, Clock, Trash2, Search, Filter, Users } from 'lucide-react';
 import { format } from 'date-fns';
@@ -78,11 +78,53 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
   const [deleting, setDeleting] = useState(false);
   const toast = useToast();
 
+  const fetchLeaves = useCallback(async () => {
+    try {
+      // For admin and HR, fetch all leaves (including allotted leaves) using ?all=true
+      // This ensures the "Allot Leave" tab shows all allotted leaves
+      const url = role === 'admin' || role === 'hr' ? '/api/leave?all=true' : '/api/leave';
+      const res = await fetch(url);
+      const data = await res.json();
+      setLeaves(data.leaves || []);
+    } catch (err) {
+      console.error('Error fetching leaves:', err);
+    }
+  }, [role]);
+
+  const fetchLeaveTypes = useCallback(async () => {
+    try {
+      const res = await fetch('/api/leave-types');
+      const data = await res.json();
+      setLeaveTypes(data.leaveTypes || []);
+    } catch (err) {
+      console.error('Error fetching leave types:', err);
+    }
+  }, []);
+
+  const fetchEmployees = useCallback(async () => {
+    try {
+      const res = await fetch('/api/users');
+      const data = await res.json();
+      const currentUserId = (session?.user as any)?.id;
+      // Include both employees and HR users (exclude only admin)
+      // If HR role, exclude the current HR user from the list
+      const filteredUsers = data.users?.filter((u: any) => {
+        if (u.role === 'admin') return false;
+        // If HR is viewing, exclude themselves from the list
+        if (role === 'hr' && u._id === currentUserId) return false;
+        return true;
+      }) || [];
+      setEmployees(filteredUsers);
+    } catch (err) {
+      console.error('Error fetching employees:', err);
+    }
+  }, [session, role]);
+
   useEffect(() => {
     fetchLeaveTypes();
     fetchEmployees();
     fetchLeaves();
-  }, [session]);
+  }, [session, fetchLeaveTypes, fetchEmployees, fetchLeaves]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -106,48 +148,6 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
-
-  const fetchLeaves = async () => {
-    try {
-      // For admin and HR, fetch all leaves (including allotted leaves) using ?all=true
-      // This ensures the "Allot Leave" tab shows all allotted leaves
-      const url = role === 'admin' || role === 'hr' ? '/api/leave?all=true' : '/api/leave';
-      const res = await fetch(url);
-      const data = await res.json();
-      setLeaves(data.leaves || []);
-    } catch (err) {
-      console.error('Error fetching leaves:', err);
-    }
-  };
-
-  const fetchLeaveTypes = async () => {
-    try {
-      const res = await fetch('/api/leave-types');
-      const data = await res.json();
-      setLeaveTypes(data.leaveTypes || []);
-    } catch (err) {
-      console.error('Error fetching leave types:', err);
-    }
-  };
-
-  const fetchEmployees = async () => {
-    try {
-      const res = await fetch('/api/users');
-      const data = await res.json();
-      const currentUserId = (session?.user as any)?.id;
-      // Include both employees and HR users (exclude only admin)
-      // If HR role, exclude the current HR user from the list
-      const filteredUsers = data.users?.filter((u: any) => {
-        if (u.role === 'admin') return false;
-        // If HR is viewing, exclude themselves from the list
-        if (role === 'hr' && u._id === currentUserId) return false;
-        return true;
-      }) || [];
-      setEmployees(filteredUsers);
-    } catch (err) {
-      console.error('Error fetching employees:', err);
-    }
-  };
 
   const toggleEmployee = (employeeId: string) => {
     setSelectedEmployees((prev) =>

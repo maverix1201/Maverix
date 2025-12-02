@@ -204,9 +204,9 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                     key={item.name}
                     href={item.href}
                     whileHover={{ x: 2 }}
-                    className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${
+                    className={`flex items-center gap-2.5 px-3 py-2 transition-colors text-sm ${
                       isActive
-                        ? 'bg-primary-100 text-primary font-medium'
+                        ? 'bg-primary-100 border-l-[5px] border-primary text-primary font-medium'
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                     onClick={() => setSidebarOpen(false)}

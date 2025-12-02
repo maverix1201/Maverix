@@ -7,6 +7,7 @@ import EmployeeTeamInfo from '@/components/EmployeeTeamInfo';
 import EmployeeSearch from '@/components/EmployeeSearch';
 import TimeTrackingWidget from '@/components/TimeTrackingWidget';
 import UpcomingBirthdays from '@/components/UpcomingBirthdays';
+import EmployeeProfileCard from '@/components/EmployeeProfileCard';
 import BirthdayCelebration from '@/components/BirthdayCelebration';
 import AnnouncementModal from '@/components/AnnouncementModal';
 import NotificationDropdown from '@/components/NotificationDropdown';
@@ -175,7 +176,7 @@ export default function EmployeeDashboard() {
     }
   };
 
-  const fetchActiveAnnouncements = async (isInitialLoad = false) => {
+  const fetchActiveAnnouncements = useCallback(async (isInitialLoad = false) => {
     try {
       // Use a query parameter to get all announcements including future ones
       const res = await fetch('/api/announcements?all=true');
@@ -221,7 +222,7 @@ export default function EmployeeDashboard() {
     } catch (err) {
       console.error('Error fetching active announcements:', err);
     }
-  };
+  }, [lastAnnouncementId]);
 
   const handleShowAnnouncement = async () => {
     // Stop the glowing animation when button is clicked
@@ -287,7 +288,7 @@ export default function EmployeeDashboard() {
       fetchActiveAnnouncements(true); // Initial load
       fetchProfileImage();
     }
-  }, [session, fetchStats, fetchProfileImage]);
+  }, [session, fetchStats, fetchProfileImage, fetchActiveAnnouncements]);
 
   // Check for new announcements periodically (every 5 seconds)
   useEffect(() => {
@@ -299,7 +300,7 @@ export default function EmployeeDashboard() {
     }, 5000); // Check every 5 seconds for new announcements
 
     return () => clearInterval(interval);
-  }, [session, lastAnnouncementId]);
+  }, [session, lastAnnouncementId, fetchActiveAnnouncements]);
 
   // Fetch unread notification count
   const fetchUnreadNotificationCount = async () => {
@@ -685,13 +686,22 @@ export default function EmployeeDashboard() {
             </motion.div>
           </div>
 
-          {/* Right Side Section - Team Info and Upcoming Birthdays */}
-          <div className="flex flex-col lg:flex-row gap-4">
+          {/* Right Side Section - Team Info, Upcoming Birthdays, and Profile Card */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Team Information */}
-            <EmployeeTeamInfo />
+            <div className="lg:col-span-1">
+              <EmployeeTeamInfo />
+            </div>
 
             {/* Upcoming Birthdays */}
-            <UpcomingBirthdays />
+            <div className="lg:col-span-1">
+              <UpcomingBirthdays />
+            </div>
+
+            {/* Employee Profile Card */}
+            <div className="lg:col-span-1">
+              <EmployeeProfileCard />
+            </div>
           </div>
         </div>
       </div>

@@ -34,6 +34,35 @@ export default function TimeTrackingWidget() {
   const [showEventPopup, setShowEventPopup] = useState(false);
   const [selectedEventDate, setSelectedEventDate] = useState<Date | null>(null);
   const [selectedEventDetails, setSelectedEventDetails] = useState<Array<{ summary: string; description: string }>>([]);
+  
+  // Carousel state for mobile
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [touchStart, setTouchStart] = useState(0);
+  const [touchEnd, setTouchEnd] = useState(0);
+
+  // Handle touch events for carousel
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe && currentSlide < 1) {
+      setCurrentSlide(currentSlide + 1);
+    }
+    if (isRightSwipe && currentSlide > 0) {
+      setCurrentSlide(currentSlide - 1);
+    }
+  };
 
   const checkClockStatus = async () => {
     try {
@@ -352,12 +381,22 @@ export default function TimeTrackingWidget() {
 
   return (
     <>
-      {/* Time Tracking Widget */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 h-full flex flex-col"
-      >
+      {/* Mobile Carousel Container */}
+      <div className="lg:hidden relative overflow-hidden">
+        <div
+          className="flex transition-transform duration-300 ease-in-out"
+          style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          {/* Slide 1: Time Tracking Widget */}
+          <div className="min-w-full flex-shrink-0">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="relative bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 h-full flex flex-col"
+            >
         <div className="p-6 flex-1 flex flex-col">
           {/* Status Badge - Clocked In */}
         {clockedIn && (
@@ -379,15 +418,15 @@ export default function TimeTrackingWidget() {
                   const [hours, minutes, seconds] = elapsed.split(':');
                   return (
                     <>
-                      <span className="text-4xl md:text-5xl font-primary font-bold text-primary-500 bg-primary-50 px-3 py-2 rounded-md">
+                      <span className="text-4xl md:text-5xl font-primary font-bold text-primary bg-primary-100 px-3 py-2 rounded-md shadow-sm">
                         {hours}
                       </span>
                       <span className="text-4xl md:text-5xl font-primary font-bold text-gray-900">:</span>
-                      <span className="text-4xl md:text-5xl font-primary font-bold text-primary-500 bg-primary-50 px-3 py-2 rounded-md">
+                      <span className="text-4xl md:text-5xl font-primary font-bold text-primary bg-primary-100 px-3 py-2 rounded-md shadow-sm">
                         {minutes}
                       </span>
                       <span className="text-4xl md:text-5xl font-primary font-bold text-gray-900">:</span>
-                      <span className="text-4xl md:text-5xl font-primary font-bold text-primary-500 bg-primary-50 px-3 py-2 rounded-md">
+                      <span className="text-4xl md:text-5xl font-primary font-bold text-primary bg-primary-100 px-3 py-2 rounded-md shadow-sm">
                         {seconds}
                       </span>
                     </>
@@ -395,10 +434,32 @@ export default function TimeTrackingWidget() {
                 })()}
               </div>
             ) : (
-              // Current Time
-              <span className="text-4xl md:text-5xl font-primary font-bold text-gray-900">
-                {mounted && currentTime ? format(currentTime, 'hh:mm:ss') : '--:--:--'}
-              </span>
+              // Current Time with different background colors
+              <div className="flex items-center justify-center gap-2">
+                {mounted && currentTime ? (
+                  (() => {
+                    const timeStr = format(currentTime, 'hh:mm:ss');
+                    const [hours, minutes, seconds] = timeStr.split(':');
+                    return (
+                      <>
+                        <span className="text-4xl md:text-5xl font-primary font-bold text-primary bg-primary-100 px-3 py-2 rounded-md shadow-sm">
+                          {hours}
+                        </span>
+                        <span className="text-4xl md:text-5xl font-primary font-bold text-gray-900">:</span>
+                        <span className="text-4xl md:text-5xl font-primary font-bold text-primary bg-primary-100 px-3 py-2 rounded-md shadow-sm">
+                          {minutes}
+                        </span>
+                        <span className="text-4xl md:text-5xl font-primary font-bold text-gray-900">:</span>
+                        <span className="text-4xl md:text-5xl font-primary font-bold text-primary bg-primary-100 px-3 py-2 rounded-md shadow-sm">
+                          {seconds}
+                        </span>
+                      </>
+                    );
+                  })()
+                ) : (
+                  <span className="text-4xl md:text-5xl font-primary font-bold text-gray-900">--:--:--</span>
+                )}
+              </div>
             )}
           </div>
           <div>
@@ -512,15 +573,17 @@ export default function TimeTrackingWidget() {
           </div>
         </div>
         </div>
-      </motion.div>
+            </motion.div>
+          </div>
 
-      {/* Calendar Widget - Separate Component */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="hidden lg:block relative bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 h-full"
-      >
+          {/* Slide 2: Calendar Widget */}
+          <div className="min-w-full flex-shrink-0">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="relative bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 h-full"
+            >
         <div className="p-2.5 h-full flex flex-col">
           {/* Calendar Header with Navigation - Ultra Compact */}
           <div className="flex items-center justify-between mb-2 p-2 bg-gray-100 rounded-lg">
@@ -558,7 +621,7 @@ export default function TimeTrackingWidget() {
             </div>
 
             {/* Calendar Days - Ultra Compact */}
-            <div className="grid grid-cols-7 gap-2 flex-1">
+            <div className="grid grid-cols-7 gap-0.5 flex-1">
               {calendarDays.map((day, idx) => {
                 const dayKey = format(day, 'yyyy-MM-dd');
                 const isCurrentMonth = isSameMonth(day, currentMonth);
@@ -584,7 +647,8 @@ export default function TimeTrackingWidget() {
                     onClick={handleDateClick}
                     whileTap={{ scale: 0.9 }}
                     className={`
-                      relative rounded text-[12px] font-semibold p-1
+                      relative rounded-full text-[12px] font-semibold p-0
+                      aspect-square w-full flex items-center justify-center
                       ${!isCurrentMonth ? 'text-gray-200' : isHighlighted ? 'text-white' : 'text-gray-700 bg-gray-100'}
                       ${isHighlighted ? 'bg-green-500 font-semibold' : ''}
                       ${!isHighlighted && isCurrentMonth ? 'hover:bg-gray-50 active:bg-gray-100' : ''}
@@ -593,13 +657,13 @@ export default function TimeTrackingWidget() {
                     <span className="relative z-10 leading-none">{format(day, 'd')}</span>
                     {/* Event/Festival Dot - Upper Right Corner */}
                     {hasEvent && !isHighlighted && (
-                      <div className="absolute top-0 right-0">
+                      <div className="absolute top-2 right-2">
                         <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
                       </div>
                     )}
                     {/* Event dot for highlighted dates */}
                     {hasEvent && isHighlighted && (
-                      <div className="absolute top-0 right-0">
+                      <div className="absolute top-2 right-2">
                         <div className="w-1.5 h-1.5 bg-white rounded-full border border-green-600"></div>
                       </div>
                     )}
@@ -609,7 +673,310 @@ export default function TimeTrackingWidget() {
             </div>
           </div>
         </div>
-      </motion.div>
+            </motion.div>
+          </div>
+        </div>
+      </div>
+
+      {/* Carousel Navigation Dots - Mobile Only */}
+      <div className="lg:hidden flex justify-center gap-2 mt-4">
+        <button
+          onClick={() => setCurrentSlide(0)}
+          className={`w-2 h-2 rounded-full transition-all ${
+            currentSlide === 0 ? 'bg-blue-600 w-6' : 'bg-gray-300'
+          }`}
+        />
+        <button
+          onClick={() => setCurrentSlide(1)}
+          className={`w-2 h-2 rounded-full transition-all ${
+            currentSlide === 1 ? 'bg-blue-600 w-6' : 'bg-gray-300'
+          }`}
+        />
+      </div>
+
+      {/* Desktop Layout - Side by Side */}
+      <div className="hidden lg:contents">
+        {/* Time Tracking Widget - Desktop */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 h-full flex flex-col"
+        >
+          <div className="p-6 flex-1 flex flex-col">
+            {/* Status Badge - Clocked In */}
+            {clockedIn && (
+              <div className="flex justify-center mb-4">
+                <div className="bg-green-100 text-green-500 px-2 py-0.5 rounded-lg text-[10px] font-semibold">
+                  Clocked In
+                </div>
+              </div>
+            )}
+
+            {/* Current Time / Elapsed Time Display - Top Section */}
+            <div className="text-center mb-6">
+              <div className="mb-2">
+                {clockedIn && clockInTime ? (
+                  // Elapsed Time with different background colors
+                  <div className="flex items-center justify-center gap-2">
+                    {(() => {
+                      const elapsed = calculateElapsedTime();
+                      const [hours, minutes, seconds] = elapsed.split(':');
+                      return (
+                        <>
+                          <span className="text-4xl md:text-5xl font-primary font-bold text-primary bg-primary-100 px-3 py-2 rounded-md shadow-sm">
+                            {hours}
+                          </span>
+                          <span className="text-4xl md:text-5xl font-primary font-bold text-gray-900">:</span>
+                          <span className="text-4xl md:text-5xl font-primary font-bold text-primary bg-primary-100 px-3 py-2 rounded-md shadow-sm">
+                            {minutes}
+                          </span>
+                          <span className="text-4xl md:text-5xl font-primary font-bold text-gray-900">:</span>
+                          <span className="text-4xl md:text-5xl font-primary font-bold text-primary bg-primary-100 px-3 py-2 rounded-md shadow-sm">
+                            {seconds}
+                          </span>
+                        </>
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  // Current Time with different background colors
+                  <div className="flex items-center justify-center gap-2">
+                    {mounted && currentTime ? (
+                      (() => {
+                        const timeStr = format(currentTime, 'hh:mm:ss');
+                        const [hours, minutes, seconds] = timeStr.split(':');
+                        return (
+                          <>
+                            <span className="text-4xl md:text-5xl font-primary font-bold text-primary bg-primary-100 px-3 py-2 rounded-md shadow-sm">
+                              {hours}
+                            </span>
+                            <span className="text-4xl md:text-5xl font-primary font-bold text-gray-900">:</span>
+                            <span className="text-4xl md:text-5xl font-primary font-bold text-primary bg-primary-100 px-3 py-2 rounded-md shadow-sm">
+                              {minutes}
+                            </span>
+                            <span className="text-4xl md:text-5xl font-primary font-bold text-gray-900">:</span>
+                            <span className="text-4xl md:text-5xl font-primary font-bold text-primary bg-primary-100 px-3 py-2 rounded-md shadow-sm">
+                              {seconds}
+                            </span>
+                          </>
+                        );
+                      })()
+                    ) : (
+                      <span className="text-4xl md:text-5xl font-primary font-bold text-gray-900">--:--:--</span>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div>
+                <span className="text-sm font-secondary text-gray-500">
+                  {mounted && currentTime ? formatDate(currentTime) : '--- --, ----'}
+                </span>
+              </div>
+            </div>
+
+            {/* Clocked In Details */}
+            {clockedIn && clockInTime && (
+              <div className="text-center mb-6">
+                <p className="text-sm font-semibold text-gray-500">
+                  Clocked in: <span className="font-bold text-gray-900">{formatClockInDate(clockInTime)} at {formatTimeOnly(clockInTime)}</span>
+                </p>
+              </div>
+            )}
+
+            {/* Clock In/Out Button */}
+            <motion.button
+              onClick={handleClockInOut}
+              disabled={loading}
+              whileHover={{ scale: loading ? 1 : 1.02 }}
+              whileTap={{ scale: loading ? 1 : 0.98 }}
+              className={`w-full py-4 rounded-xl font-semibold text-base transition-all shadow-lg flex items-center justify-center gap-2 mb-6 ${
+                clockedIn
+                  ? 'bg-red-500 hover:bg-red-600 text-white'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              {loading ? (
+                <>
+                  <LoadingDots size="sm" color="white" />
+                  <span>Processing...</span>
+                </>
+              ) : clockedIn ? (
+                <>
+                  <div className="w-5 h-5 bg-white/20 rounded flex items-center justify-center">
+                    <LogOut className="w-4 h-4" />
+                  </div>
+                  <span>Clock Out</span>
+                </>
+              ) : (
+                <>
+                  <div className="w-5 h-5 bg-white/20 rounded flex items-center justify-center">
+                    <LogIn className="w-4 h-4" />
+                  </div>
+                  <span>Clock In</span>
+                </>
+              )}
+            </motion.button>
+
+            {/* Recent 3 Attendance History - Compact Single Line */}
+            <div className="border-t border-gray-200 pt-4">
+              <div className="flex items-center gap-2 mb-3">
+                <RotateCcw className="w-4 h-4 text-gray-600" />
+                <h3 className="text-sm font-primary font-semibold text-gray-900">Recent Attendance</h3>
+              </div>
+
+              <div className="space-y-2">
+                {attendanceLoading ? (
+                  <div className="text-center py-4">
+                    <LoadingDots size="sm" className="mb-2" />
+                    <p className="text-xs text-gray-500 font-secondary">Loading...</p>
+                  </div>
+                ) : recentAttendance.length === 0 ? (
+                  <div className="text-center py-4">
+                    <p className="text-xs text-gray-500 font-secondary">No attendance records yet</p>
+                  </div>
+                ) : (
+                  recentAttendance.slice(0, 3).map((record, index) => (
+                    <motion.div
+                      key={record._id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="flex items-center justify-between p-1 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className={`p-1.5 rounded ${record.clockOut ? 'bg-green-100' : 'bg-yellow-100'}`}>
+                          <CheckCircle className={`w-3.5 h-3.5 ${record.clockOut ? 'text-green-600' : 'text-yellow-600'}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 text-[10px]">
+                            <span className="text-gray-900 font-semibold">{formatDate(record.date)}</span>
+                            <span className="text-gray-400">•</span>
+                            <span className="text-gray-600 font-bold">{formatTimeOnly(record.clockIn)}</span>
+                            {record.clockOut && (
+                              <>
+                                <span className="text-gray-400">-</span>
+                                <span className="text-gray-600 font-bold">{formatTimeOnly(record.clockOut)}</span>
+                              </>
+                            )}
+                            {record.clockOut && (
+                              <>
+                                <span className="text-gray-400">•</span>
+                                <span className="text-gray-600 font-bold">
+                                  {calculateDuration(record.clockIn, record.clockOut)}
+                                </span>
+                              </>
+                            )}
+                            {!record.clockOut && (
+                              <span className="text-yellow-600 font-bold ml-1">(Active)</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Calendar Widget - Desktop */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="relative bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 h-full"
+        >
+          <div className="p-2.5 h-full flex flex-col">
+            {/* Calendar Header with Navigation - Ultra Compact */}
+            <div className="flex items-center justify-between mb-2 p-2 bg-gray-100 rounded-lg">
+              <button
+                onClick={prevMonth}
+                className="p-0.5 hover:bg-gray-100 rounded transition-colors"
+              >
+                <ChevronLeft className="w-3 h-3 text-gray-600" />
+              </button>
+              <div className="text-center flex-1">
+                <h4 className="text-[18px] font-primary font-bold text-gray-900">
+                  {format(currentMonth, 'MMM yyyy')}
+                </h4>
+              </div>
+              <button
+                onClick={nextMonth}
+                className="p-0.5 hover:bg-gray-100 rounded transition-colors"
+              >
+                <ChevronRight className="w-3 h-3 text-gray-600" />
+              </button>
+            </div>
+
+            {/* Calendar Grid - Ultra Compact */}
+            <div className="flex-1 min-w-0 flex flex-col">
+              {/* Day Headers - Ultra Compact */}
+              <div className="grid grid-cols-7 gap-0 mb-2">
+                {['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'].map((day) => (
+                  <div
+                    key={day}
+                    className="text-center text-[12px] text-gray-400 font-bold"
+                  >
+                    {day}
+                  </div>
+                ))}
+              </div>
+
+              {/* Calendar Days - Ultra Compact */}
+              <div className="grid grid-cols-7 gap-0.5 flex-1">
+                {calendarDays.map((day, idx) => {
+                  const dayKey = format(day, 'yyyy-MM-dd');
+                  const isCurrentMonth = isSameMonth(day, currentMonth);
+                  const isToday = isSameDay(day, new Date());
+                  const isSelected = isSameDay(day, selectedDate);
+                  const hasEvent = calendarEvents[dayKey] && calendarEvents[dayKey].length > 0;
+                  
+                  // Selected date or today gets green circle
+                  const isHighlighted = isSelected || isToday;
+
+                  const handleDateClick = () => {
+                    setSelectedDate(day);
+                    if (hasEvent) {
+                      setSelectedEventDate(day);
+                      setSelectedEventDetails(calendarEvents[dayKey]);
+                      setShowEventPopup(true);
+                    }
+                  };
+
+                  return (
+                    <motion.button
+                      key={idx}
+                      onClick={handleDateClick}
+                      whileTap={{ scale: 0.9 }}
+                      className={`
+                        relative rounded text-[12px] font-semibold p-1
+                        ${!isCurrentMonth ? 'text-gray-200' : isHighlighted ? 'text-white' : 'text-gray-700 bg-gray-100'}
+                        ${isHighlighted ? 'bg-green-500 font-semibold' : ''}
+                        ${!isHighlighted && isCurrentMonth ? 'hover:bg-gray-50 active:bg-gray-100' : ''}
+                      `}
+                    >
+                      <span className="relative z-10 leading-none">{format(day, 'd')}</span>
+                      {/* Event/Festival Dot - Upper Right Corner */}
+                      {hasEvent && !isHighlighted && (
+                        <div className="absolute top-0 right-0">
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                        </div>
+                      )}
+                      {/* Event dot for highlighted dates */}
+                      {hasEvent && isHighlighted && (
+                        <div className="absolute top-0 right-0">
+                          <div className="w-1.5 h-1.5 bg-white rounded-full border border-green-600"></div>
+                        </div>
+                      )}
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
 
       {/* Event/Festival Popup */}
       <AnimatePresence>
@@ -621,47 +988,56 @@ export default function TimeTrackingWidget() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={() => setShowEventPopup(false)}
-                className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50"
+                className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
               />
               
-              {/* Popup */}
+              {/* Popup - Centered on Mobile and Desktop */}
               <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-80 max-w-[90vw]"
+                initial={{ opacity: 0, scale: 0.95, x: '-50%', y: '-50%' }}
+                animate={{ opacity: 1, scale: 1, x: '-50%', y: '-50%' }}
+                exit={{ opacity: 0, scale: 0.95, x: '-50%', y: '-50%' }}
+                className="fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] max-w-sm"
+                onClick={(e) => e.stopPropagation()}
               >
-                <div className="bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden">
+                <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
                   {/* Header */}
-                  <div className="bg-gradient-to-r from-green-500 to-green-600 px-4 py-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <CalendarIcon className="w-4 h-4 text-white" />
-                      <h3 className="text-sm font-semibold text-white font-primary">
-                        {format(selectedEventDate, 'EEEE, MMMM dd, yyyy')}
+                  <div className="bg-gradient-to-r from-green-500 to-green-600 px-4 py-3 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <CalendarIcon className="w-4 h-4 text-white flex-shrink-0" />
+                      <h3 className="text-xs md:text-sm font-semibold text-white font-primary truncate">
+                        {format(selectedEventDate, 'EEEE, MMM dd, yyyy')}
                       </h3>
                     </div>
                     <button
                       onClick={() => setShowEventPopup(false)}
-                      className="p-1 hover:bg-white/20 rounded transition-colors"
+                      className="p-1.5 hover:bg-white/20 rounded-lg transition-colors flex-shrink-0"
+                      aria-label="Close"
                     >
                       <X className="w-4 h-4 text-white" />
                     </button>
                   </div>
 
                   {/* Event Details */}
-                  <div className="p-4 max-h-64 overflow-y-auto">
+                  <div className="p-4 max-h-[60vh] md:max-h-64 overflow-y-auto">
                     {selectedEventDetails.length > 0 ? (
                       <div className="space-y-3">
                         {selectedEventDetails.map((event, idx) => (
                           <div key={idx} className="border-l-2 border-green-500 pl-3">
-                            <h4 className="text-sm font-semibold text-gray-900 font-primary mb-1">
+                            <h4 className="text-sm md:text-base font-semibold text-gray-900 font-primary mb-1">
                               {event.summary}
                             </h4>
+                            {event.description && (
+                              <p className="text-xs md:text-sm text-gray-600 font-secondary leading-relaxed mt-1">
+                                {event.description.length > 200 
+                                  ? `${event.description.substring(0, 200)}...` 
+                                  : event.description}
+                              </p>
+                            )}
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-gray-500 font-secondary text-center py-2">
+                      <p className="text-sm text-gray-500 font-secondary text-center py-4">
                         No event details available
                       </p>
                     )}

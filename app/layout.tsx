@@ -10,7 +10,7 @@ const openSans = Open_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "MM HRM - Human Resources Management",
+  title: "MaveriX",
   description: "Modern HR Management System",
   icons: {
     icon: [

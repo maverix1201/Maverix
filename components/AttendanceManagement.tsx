@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { format, startOfDay, isSameDay, parseISO, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { Clock, Calendar, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -79,22 +79,7 @@ export default function AttendanceManagement({ initialAttendance, isAdminOrHR = 
     }
   }, [searchParams]);
 
-  // Fetch all employees if admin/hr
-  useEffect(() => {
-    if (isAdminOrHR) {
-      fetchAllEmployees();
-    }
-  }, [isAdminOrHR]);
-
-  // Fetch attendance when date changes
-  useEffect(() => {
-    if (isAdminOrHR) {
-      fetchAttendance();
-      fetchEmployeesOnLeave();
-    }
-  }, [isAdminOrHR, selectedDate]);
-
-  const fetchEmployeesOnLeave = async () => {
+  const fetchEmployeesOnLeave = useCallback(async () => {
     try {
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
       const res = await fetch(`/api/leave/on-leave-by-date?date=${dateStr}`);
@@ -105,9 +90,9 @@ export default function AttendanceManagement({ initialAttendance, isAdminOrHR = 
     } catch (err) {
       console.error('Error fetching employees on leave:', err);
     }
-  };
+  }, [selectedDate]);
 
-  const fetchAllEmployees = async () => {
+  const fetchAllEmployees = useCallback(async () => {
     try {
       setLoading(true);
       const res = await fetch('/api/users');
@@ -121,9 +106,9 @@ export default function AttendanceManagement({ initialAttendance, isAdminOrHR = 
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchAttendance = async () => {
+  const fetchAttendance = useCallback(async () => {
     try {
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
       const res = await fetch(`/api/attendance/by-date?date=${dateStr}`);
@@ -134,7 +119,22 @@ export default function AttendanceManagement({ initialAttendance, isAdminOrHR = 
     } catch (err) {
       console.error('Error fetching attendance:', err);
     }
-  };
+  }, [selectedDate]);
+
+  // Fetch all employees if admin/hr
+  useEffect(() => {
+    if (isAdminOrHR) {
+      fetchAllEmployees();
+    }
+  }, [isAdminOrHR, fetchAllEmployees]);
+
+  // Fetch attendance when date changes
+  useEffect(() => {
+    if (isAdminOrHR) {
+      fetchAttendance();
+      fetchEmployeesOnLeave();
+    }
+  }, [isAdminOrHR, selectedDate, fetchAttendance, fetchEmployeesOnLeave]);
 
   const formatTime = (dateString: string) => {
     return format(new Date(dateString), 'hh:mm a');

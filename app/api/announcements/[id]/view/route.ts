@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 // POST - Track a view for an announcement
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -26,7 +26,8 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const announcementId = params.id;
+    const { id } = await params;
+    const announcementId = id;
     const userId = (session.user as any).id;
 
     if (!mongoose.Types.ObjectId.isValid(announcementId)) {

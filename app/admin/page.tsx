@@ -23,7 +23,7 @@ interface RecentTeam {
     name: string;
     email: string;
     profileImage?: string;
-  };
+  } | null;
   members: Array<{
     _id: string;
     name: string;
@@ -358,8 +358,8 @@ export default function AdminDashboard() {
                         <div className="flex items-start gap-3">
                           <div className="flex-shrink-0">
                             <UserAvatar
-                              name={team.leader.name}
-                              image={team.leader.profileImage}
+                              name={team.leader?.name || 'No Leader'}
+                              image={team.leader?.profileImage || null}
                               size="sm"
                             />
                           </div>

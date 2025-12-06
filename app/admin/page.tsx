@@ -272,7 +272,7 @@ export default function AdminDashboard() {
               />
               <div>
                 <h1 className="text-2xl font-primary font-bold text-gray-800">Admin Dashboard</h1>
-                <p className="text-sm text-gray-600 mt-0.5 font-secondary">Welcome back, {session?.user?.name}</p>
+                <p className="text-sm text-gray-600 mt-0.5 font-secondary">Welcome back, {session?.user?.name?.split(' ')[0] || session?.user?.name}</p>
               </div>
             </div>
             <div className="w-full md:w-auto min-w-[280px] max-w-md">

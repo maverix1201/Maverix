@@ -477,7 +477,7 @@ export default function EmployeeDashboard() {
                   size="lg"
                 />
                 <div>
-                  <h3 className="text-md font-bold text-gray-800">{greeting}, <span className="text-secondary">{session?.user?.name}</span></h3>
+                  <h3 className="text-md font-bold text-gray-800">{greeting}, <span className="text-secondary">{session?.user?.name?.split(' ')[0] || session?.user?.name}</span></h3>
                   {userProfile?.designation ? (
                     <p className="text-sm font-bold text-primary mt-1 font-secondary">
                       {userProfile.designation}

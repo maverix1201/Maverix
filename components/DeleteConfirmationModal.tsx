@@ -38,7 +38,7 @@ export default function DeleteConfirmationModal({
             onClick={(e) => e.stopPropagation()}
           >
             {/* Light Glass Background */}
-            <div className="relative bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/50">
+            <div className="relative bg-white/80 backdrop-blur-xl rounded-md shadow-2xl border border-white/50">
               {/* Subtle Gradient Overlay */}
               <div className="absolute inset-0 bg-gradient-to-br from-red-50/30 via-transparent to-orange-50/20 pointer-events-none" />
               

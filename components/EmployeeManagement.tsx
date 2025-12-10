@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Edit, Trash2, Mail, User, Calendar, Clock, Settings } from 'lucide-react';
+import { Plus, Edit, Trash2, Mail, User, Calendar, Clock, Settings, Search, X } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 import { useSession } from 'next-auth/react';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
@@ -63,6 +63,7 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
   const [loadingTimeLimit, setLoadingTimeLimit] = useState(false);
   const [maxLateDays, setMaxLateDays] = useState<number>(0);
   const [noClockInRestrictions, setNoClockInRestrictions] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const { data: session } = useSession();
   const toast = useToast();
 
@@ -445,21 +446,45 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
     };
   }, [isHROrAdmin]);
 
+  // Filter employees based on search term
+  const filteredEmployees = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return employees;
+    }
+    const searchLower = searchTerm.toLowerCase().trim();
+    return employees.filter((employee) => {
+      const nameMatch = employee.name.toLowerCase().includes(searchLower);
+      const emailMatch = employee.email.toLowerCase().includes(searchLower);
+      const designationMatch = employee.designation?.toLowerCase().includes(searchLower);
+      const roleMatch = employee.role.toLowerCase().includes(searchLower);
+      return nameMatch || emailMatch || designationMatch || roleMatch;
+    });
+  }, [employees, searchTerm]);
+
   // Pagination logic
   const paginatedEmployees = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    return employees.slice(startIndex, endIndex);
-  }, [employees, currentPage]);
+    return filteredEmployees.slice(startIndex, endIndex);
+  }, [filteredEmployees, currentPage]);
 
-  const totalPages = Math.ceil(employees.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
+
+  // Handle search with page reset
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
+  };
 
   return (
     <div>
       <div className="bg-white rounded-lg shadow-sm border border-gray-100">
-        <div className="p-3 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-base font-primary font-semibold text-gray-800">All Employees</h2>
-          <div className="flex items-center gap-2">
+        <div className="p-3 border-b border-gray-200">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-primary font-semibold text-gray-800">All Employees</h2>
+            <div className="flex items-center gap-2">
             {isHROrAdmin && (
               <>
                 <button
@@ -514,6 +539,27 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
               <Plus className="w-3.5 h-3.5" />
               <span className="font-secondary">Add Employee</span>
             </button>
+          </div>
+          </div>
+          {/* Search Box */}
+          <div className="relative mt-3">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search employees by name, email, designation, or role..."
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="w-full pl-10 pr-10 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-white"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => handleSearchChange('')}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                title="Clear search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -685,7 +731,7 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
             currentPage={currentPage}
             totalPages={totalPages}
             onPageChange={setCurrentPage}
-            totalItems={employees.length}
+            totalItems={filteredEmployees.length}
             itemsPerPage={itemsPerPage}
           />
         )}
@@ -908,7 +954,7 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-5 w-full max-w-md border border-white/50"
+            className="bg-white/95 backdrop-blur-xl rounded-md shadow-2xl p-5 w-full max-w-md border border-white/50"
           >
             <h2 className="text-xl font-primary font-bold text-gray-800 mb-4">
               Clock-in Settings

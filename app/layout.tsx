@@ -16,6 +16,19 @@ export const metadata: Metadata = {
     icon: [
       { url: "/assets/maverixicon.png", sizes: "any" },
     ],
+    apple: [
+      { url: "/assets/maverixicon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "MaveriX",
+  },
+  other: {
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "black-translucent",
+    "apple-mobile-web-app-title": "MaveriX",
   },
 };
 
@@ -25,6 +38,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   themeColor: "#6366f1",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -37,6 +51,9 @@ export default function RootLayout({
       <head>
         {/* Theme Color */}
         <meta name="theme-color" content="#6366f1" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="MaveriX" />
         
         {/* Favicon */}
         <link

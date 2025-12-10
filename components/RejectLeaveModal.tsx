@@ -48,7 +48,7 @@ export default function RejectLeaveModal({
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
-        className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-md border border-white/50"
+        className="bg-white/95 backdrop-blur-xl rounded-md shadow-2xl w-full max-w-md border border-white/50"
       >
         <div className="p-6">
           {/* Header */}

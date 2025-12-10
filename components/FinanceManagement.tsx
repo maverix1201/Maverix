@@ -581,7 +581,7 @@ export default function FinanceManagement({
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/50 p-5 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+                className="bg-white/95 backdrop-blur-xl rounded-md shadow-2xl border border-white/50 p-5 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
               >
                 <div className="flex items-center justify-between mb-5">
                   <h2 className="text-xl font-primary font-bold text-gray-800">
@@ -770,7 +770,7 @@ export default function FinanceManagement({
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/50 p-5 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+                className="bg-white/95 backdrop-blur-xl rounded-md shadow-2xl border border-white/50 p-5 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
               >
                 <div className="flex items-center justify-between mb-5">
                   <h2 className="text-xl font-primary font-bold text-gray-800">

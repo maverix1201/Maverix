@@ -280,16 +280,16 @@ export default function AnnouncementManagement() {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-lg h-full flex flex-col overflow-hidden">
+    <div className="bg-white rounded-md border border-gray-100 shadow-lg h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between flex-shrink-0 p-5 border-b border-purple-200/50 bg-gradient-to-r from-purple-500 via-indigo-500 to-blue-500">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-white/20 backdrop-blur-sm rounded-xl shadow-lg border border-white/30">
-            <Megaphone className="w-5 h-5 text-white" />
+      <div className="flex items-center justify-between flex-shrink-0 p-3 border-b border-gray-200 bg-white">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 bg-purple-100 rounded-md">
+            <Megaphone className="w-3.5 h-3.5 text-purple-600" />
           </div>
           <div>
-            <h2 className="text-lg font-primary font-bold text-white">Announcements</h2>
-            <p className="text-xs text-white/90 font-secondary mt-0.5">
+            <h2 className="text-sm font-primary font-bold text-gray-900">Announcements</h2>
+            <p className="text-[9px] text-gray-500 font-secondary mt-0.5">
               {announcements.length} {announcements.length === 1 ? 'announcement' : 'announcements'} • Manage and create
             </p>
           </div>
@@ -310,9 +310,9 @@ export default function AnnouncementManagement() {
             setError('');
             setShowModal(true);
           }}
-          className="flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-lg shadow-lg hover:bg-white/30 border border-white/30 transition-all font-secondary font-semibold text-sm"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 transition-all font-secondary font-semibold text-xs"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-3.5 h-3.5" />
           <span className="hidden md:block font-secondary">New</span>
         </motion.button>
       </div>
@@ -456,7 +456,7 @@ export default function AnnouncementManagement() {
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative border border-white/50"
+                className="bg-white/95 backdrop-blur-xl rounded-md shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative border border-white/50"
               >
                 <div className="sticky top-0 bg-white/95 backdrop-blur-xl border-b border-white/30 px-6 py-4 flex items-center justify-between z-10">
                   <div className="flex items-center gap-3">
@@ -675,7 +675,7 @@ export default function AnnouncementManagement() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto relative border border-white/50"
+              className="bg-white/95 backdrop-blur-xl rounded-md shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto relative border border-white/50"
             >
               <div className="sticky top-0 bg-white/95 backdrop-blur-xl border-b border-white/30 px-6 py-4 flex items-center justify-between z-10">
                 <div className="flex items-center gap-3">

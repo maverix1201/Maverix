@@ -27,10 +27,20 @@ interface Activity {
 export default function RecentActivity() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update current time every second for real-time time display
+  useEffect(() => {
+    const timeInterval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timeInterval);
+  }, []);
 
   useEffect(() => {
     fetchActivities();
-    
+
     // Auto-refresh activities every 5 seconds
     const interval = setInterval(() => {
       fetchActivities();
@@ -117,23 +127,48 @@ export default function RecentActivity() {
     }
   };
 
+  // Format time in short format (seconds, minutes, hours)
+  const formatShortTime = (timestamp: string): string => {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffInSeconds = Math.floor((now.getTime() - time.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) {
+      return `${diffInSeconds}s ago`;
+    } else if (diffInSeconds < 3600) {
+      const minutes = Math.floor(diffInSeconds / 60);
+      return `${minutes}m ago`;
+    } else if (diffInSeconds < 86400) {
+      const hours = Math.floor(diffInSeconds / 3600);
+      return `${hours}h ago`;
+    } else {
+      const days = Math.floor(diffInSeconds / 86400);
+      return `${days}d ago`;
+    }
+  };
+
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-lg w-full h-[500px] flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between flex-shrink-0 p-5 border-b border-emerald-200/50 bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-white/20 backdrop-blur-sm rounded-xl shadow-lg border border-white/30">
-            <Activity className="w-5 h-5 text-white" />
+    <div className="bg-white rounded-md border border-gray-100 shadow-lg w-full h-[400px] flex flex-col overflow-hidden">
+      <div className="flex items-center justify-between flex-shrink-0 p-3 border-b border-gray-200 bg-white">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 bg-blue-100 rounded-md">
+            <Activity className="w-3.5 h-3.5 text-blue-600" />
           </div>
           <div>
-            <h2 className="text-lg font-primary font-bold text-white">Recent Activity</h2>
-            <p className="text-xs text-white/90 font-secondary mt-0.5">
+            <h2 className="text-sm font-primary font-bold text-gray-900">Recent Activity</h2>
+            <p className="text-[9px] text-gray-500 font-secondary mt-0.5">
               {activities.length} {activities.length === 1 ? 'activity' : 'activities'} • Live updates
             </p>
           </div>
         </div>
+        <div className="px-2.5 py-1 bg-blue-100 rounded-full flex items-center gap-1 flex-shrink-0">
+          <span className="text-xs font-bold text-blue-700 font-primary">
+            {activities.length}
+          </span>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+      <div className="flex-1 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
         {loading && activities.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12">
             <LoadingDots size="lg" className="mb-2" />
@@ -148,59 +183,78 @@ export default function RecentActivity() {
             <p className="text-sm text-gray-500 font-secondary">Activity will appear here</p>
           </div>
         ) : (
-          <div className="space-y-2.5">
-            {activities.map((activity, index) => (
-              <motion.div
-                key={activity.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="group bg-white rounded-xl border border-gray-200 hover:border-emerald-400 hover:shadow-xl transition-all duration-200 p-3.5 relative shadow-sm"
-              >
-                <div className="flex items-start gap-2.5">
-                  <div className="relative flex-shrink-0 mt-0.5">
-                    <div className={`p-2 rounded-xl shadow-sm ${
-                      activity.type === 'clockIn' ? 'bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200' :
-                      activity.type === 'clockOut' ? 'bg-gradient-to-br from-red-50 to-rose-50 border border-red-200' :
-                      'bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200'
+          <div className="space-y-1.5">
+            {activities.map((activity, index) => {
+              const isClockIn = activity.type === 'clockIn';
+              const isClockOut = activity.type === 'clockOut';
+              
+              // Skip activities with null/undefined userId
+              if (!activity.userId) {
+                return null;
+              }
+              
+              return (
+                <motion.div
+                  key={activity.id}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.03 }}
+                  className={`group rounded-md transition-all duration-200 p-4 relative ${
+                    isClockIn 
+                      ? 'bg-gray-50 hover:bg-gray-100' 
+                      : isClockOut
+                      ? 'bg-gray-50 hover:bg-gray-100'
+                      : 'bg-gray-50 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    {/* Icon */}
+                    <div className={`flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center ${
+                      isClockIn 
+                        ? 'bg-green-100' 
+                        : isClockOut
+                        ? 'bg-red-100'
+                        : 'bg-blue-100'
                     }`}>
-                      {getActivityIcon(activity.type)}
+                      {isClockIn ? (
+                        <LogIn className="w-3.5 h-3.5 text-green-600" />
+                      ) : isClockOut ? (
+                        <LogOut className="w-3.5 h-3.5 text-red-600" />
+                      ) : (
+                        <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                      )}
                     </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start gap-2">
-                      <UserAvatar
-                        name={activity.userId.name}
-                        image={activity.userId.profileImage}
-                        size="sm"
-                        className="flex-shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-gray-800 font-secondary leading-relaxed">
-                          <span className="font-bold">{activity.userId.name}</span>{' '}
+                    
+                    {/* Profile Avatar */}
+                    <UserAvatar
+                      name={activity.userId?.name || 'Unknown User'}
+                      image={activity.userId?.profileImage}
+                      size="sm"
+                      className="flex-shrink-0"
+                    />
+                    
+                    {/* Name and Status */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-semibold text-gray-900 font-primary leading-tight">
+                          {activity.userId?.name || 'Unknown User'}
+                        </span>
+                        <span className="text-[10px] text-gray-500 font-secondary leading-tight">
                           {getActivityText(activity)}
-                          {activity.details.status && (
-                            <span className={`ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold ${
-                              activity.details.status === 'approved' ? 'bg-green-100 text-green-700' :
-                              activity.details.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                              'bg-yellow-100 text-yellow-700'
-                            }`}>
-                              {activity.details.status}
-                            </span>
-                          )}
-                        </p>
-                        <div className="flex items-center gap-1.5 mt-1">
-                          <Clock className="w-2.5 h-2.5 text-gray-400" />
-                          <span className="text-[10px] text-gray-500 font-secondary">
-                            {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
-                          </span>
-                        </div>
+                        </span>
                       </div>
                     </div>
+                    
+                    {/* Time */}
+                    <div className="flex-shrink-0">
+                      <span className="text-[10px] text-gray-500 font-secondary whitespace-nowrap">
+                        {formatShortTime(activity.timestamp)}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </div>
         )}
       </div>

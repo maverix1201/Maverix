@@ -79,13 +79,13 @@ export default function EmployeeProfileCard() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl overflow-hidden border-2 border-red-500"
+          className="rounded-md overflow-hidden border-2 border-red-500 h-[400px] flex flex-col"
           style={{
             background: 'var(--secondary)',
             animation: 'shining-red-border 2s ease-in-out infinite'
           }}
         >
-          <div className="p-6 flex items-center justify-center h-64">
+          <div className="p-6 flex items-center justify-center flex-1">
             <LoadingDots size="md" />
           </div>
         </motion.div>
@@ -94,7 +94,7 @@ export default function EmployeeProfileCard() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="rounded-2xl overflow-hidden border-2 border-blue-500 hover:shadow-xl transition-all"
+          className="rounded-md overflow-hidden border-2 border-blue-500 hover:shadow-xl transition-all h-[400px] flex flex-col"
           style={{
             background: 'var(--primary)',
             animation: 'shining-red-border 2s ease-in-out infinite'

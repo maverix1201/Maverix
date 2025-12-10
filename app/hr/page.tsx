@@ -312,23 +312,28 @@ export default function HRDashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.7 }}
-              className="bg-white rounded-2xl border border-gray-100 shadow-lg w-full h-[500px] flex flex-col overflow-hidden"
+              className="bg-white rounded-md border border-gray-100 shadow-lg w-full h-[400px] flex flex-col overflow-hidden"
             >
-              <div className="flex items-center justify-between flex-shrink-0 p-5 border-b border-violet-200/50 bg-gradient-to-r from-violet-400 via-purple-400 to-fuchsia-400">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-white/20 backdrop-blur-sm rounded-xl shadow-lg border border-white/30">
-                    <UserCog className="w-5 h-5 text-white" />
+              <div className="flex items-center justify-between flex-shrink-0 p-3 border-b border-gray-200 bg-white">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-purple-100 rounded-md">
+                    <UserCog className="w-3.5 h-3.5 text-purple-600" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-primary font-bold text-white">Recent Teams</h2>
-                    <p className="text-xs text-white/90 font-secondary mt-0.5">
+                    <h2 className="text-sm font-primary font-bold text-gray-900">Recent Teams</h2>
+                    <p className="text-[9px] text-gray-500 font-secondary mt-0.5">
                       {recentTeams.length} {recentTeams.length === 1 ? 'team' : 'teams'} • Active groups
                     </p>
                   </div>
                 </div>
+                <div className="px-2.5 py-1 bg-purple-100 rounded-full flex items-center gap-1 flex-shrink-0">
+                  <span className="text-xs font-bold text-purple-700 font-primary">
+                    {recentTeams.length}
+                  </span>
+                </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-3 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+              <div className="flex-1 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
                 {teamsLoading && recentTeams.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12">
                     <LoadingDots size="lg" className="mb-2" />
@@ -343,55 +348,76 @@ export default function HRDashboard() {
                     <p className="text-sm text-gray-500 font-secondary">Create your first team to get started</p>
                   </div>
                 ) : (
-                  <div className="space-y-2.5">
-                    {recentTeams.map((team, index) => (
-                      <motion.a
-                        key={team._id}
-                        href="/hr/teams"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        className="group block bg-white rounded-xl border border-gray-200 hover:border-violet-400 hover:shadow-xl transition-all duration-200 p-3.5 relative shadow-sm"
-                      >
-                        <div className="flex items-start gap-2.5">
-                          <div className="relative flex-shrink-0">
-                            <div className="p-1 rounded-xl bg-gradient-to-br from-violet-50 to-purple-50 border border-violet-200">
+                  <div className="space-y-1.5">
+                    {recentTeams.map((team, index) => {
+                      // Format time in short format
+                      const formatShortTime = (timestamp: string): string => {
+                        const now = new Date();
+                        const time = new Date(timestamp);
+                        const diffInSeconds = Math.floor((now.getTime() - time.getTime()) / 1000);
+                        
+                        if (diffInSeconds < 60) {
+                          return `${diffInSeconds}s ago`;
+                        } else if (diffInSeconds < 3600) {
+                          const minutes = Math.floor(diffInSeconds / 60);
+                          return `${minutes}m ago`;
+                        } else if (diffInSeconds < 86400) {
+                          const hours = Math.floor(diffInSeconds / 3600);
+                          return `${hours}h ago`;
+                        } else {
+                          const days = Math.floor(diffInSeconds / 86400);
+                          return `${days}d ago`;
+                        }
+                      };
+
+                      return (
+                        <motion.a
+                          key={team._id}
+                          href="/hr/teams"
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.03 }}
+                          className="group rounded-md transition-all duration-200 p-4 relative bg-white hover:bg-gray-50"
+                        >
+                          <div className="flex items-center gap-3">
+                            {/* Avatar with badge */}
+                            <div className="relative flex-shrink-0">
                               <UserAvatar
                                 name={team.leader?.name || 'No Leader'}
                                 image={team.leader?.profileImage || null}
                                 size="sm"
                               />
+                              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-purple-500 rounded-full border-2 border-white"></div>
                             </div>
-                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-gradient-to-br from-violet-500 to-purple-500 border-2 border-white rounded-full shadow-md"></div>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-sm font-primary font-bold text-gray-800 truncate group-hover:text-violet-600 transition-colors mb-0.5">
-                              {team.name}
-                            </h3>
-                            {team.description && (
-                              <p className="text-xs text-gray-600 font-secondary line-clamp-1 mb-1">
-                                {team.description}
-                              </p>
-                            )}
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <div className="flex items-center gap-1 px-1.5 py-0.5 bg-violet-50 text-violet-700 rounded border border-violet-200">
-                                <Users className="w-2.5 h-2.5" />
-                                <span className="text-[10px] font-bold font-secondary">
-                                  {team.members.length} {team.members.length === 1 ? 'member' : 'members'}
+                            
+                            {/* Team Name and Members */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-col">
+                                <span className="text-xs font-semibold text-gray-900 font-primary leading-tight">
+                                  {team.name}
                                 </span>
-                              </div>
-                              <span className="text-gray-300 text-[10px]">•</span>
-                              <div className="flex items-center gap-1">
-                                <Clock className="w-2.5 h-2.5 text-gray-400" />
-                                <span className="text-[10px] text-gray-500 font-secondary">
-                                  {formatDistanceToNow(new Date(team.createdAt), { addSuffix: true })}
-                                </span>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <div className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-100 rounded-md">
+                                    <Users className="w-2.5 h-2.5 text-purple-700" />
+                                    <span className="text-[10px] font-bold text-purple-700 font-secondary">
+                                      {team.members.length} {team.members.length === 1 ? 'member' : 'members'}
+                                    </span>
+                                  </div>
+                                </div>
                               </div>
                             </div>
+                            
+                            {/* Time */}
+                            <div className="flex-shrink-0 flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-gray-400" />
+                              <span className="text-[10px] text-gray-500 font-secondary whitespace-nowrap">
+                                {formatShortTime(team.createdAt)}
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      </motion.a>
-                    ))}
+                        </motion.a>
+                      );
+                    })}
                   </div>
                 )}
               </div>

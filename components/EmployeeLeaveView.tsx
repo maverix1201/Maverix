@@ -638,7 +638,7 @@ export default function EmployeeLeaveView({ initialLeaves, onLeavesUpdated }: Em
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/50 p-4 w-full max-w-md my-4"
+            className="bg-white/95 backdrop-blur-xl rounded-md shadow-2xl border border-white/50 p-4 w-full max-w-md my-4"
           >
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-primary font-bold text-gray-800">Request Leave</h2>

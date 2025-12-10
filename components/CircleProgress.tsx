@@ -55,7 +55,9 @@ export default function CircleProgress({
       </svg>
       {/* Center text */}
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl font-primary font-bold text-gray-800 leading-none">{value}</span>
+        <span className="text-2xl font-primary font-bold text-gray-800 leading-none">
+          {value % 1 === 0 ? value.toFixed(0) : value.toFixed(1)}
+        </span>
         <span className="text-xs font-secondary text-gray-500 mt-0.5">of {max}</span>
       </div>
     </div>

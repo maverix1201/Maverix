@@ -713,20 +713,26 @@ export default function EmployeeDashboard() {
           </div>
 
           {/* Right Side Section - Team Info, Upcoming Birthdays, and Profile Card */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
             {/* Team Information */}
-            <div className="lg:col-span-1">
-              <EmployeeTeamInfo />
+            <div className="lg:col-span-1 flex flex-col h-full">
+              <div className="flex-1">
+                <EmployeeTeamInfo />
+              </div>
             </div>
 
             {/* Upcoming Birthdays */}
-            <div className="lg:col-span-1">
-              <UpcomingBirthdays />
+            <div className="lg:col-span-1 flex flex-col h-full">
+              <div className="flex-1">
+                <UpcomingBirthdays />
+              </div>
             </div>
 
             {/* Employee Profile Card */}
-            <div className="lg:col-span-1">
-              <EmployeeProfileCard />
+            <div className="lg:col-span-1 flex flex-col h-full">
+              <div className="flex-1">
+                <EmployeeProfileCard />
+              </div>
             </div>
           </div>
         </div>

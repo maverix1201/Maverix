@@ -82,7 +82,7 @@ export default function BirthdayCelebration({ userName, userImage, onClose }: Bi
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.5, y: 50 }}
           transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-          className="relative bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 md:p-12 max-w-md w-full mx-4 border border-white/50"
+          className="relative bg-white/95 backdrop-blur-xl rounded-md shadow-2xl p-8 md:p-12 max-w-md w-full mx-4 border border-white/50"
         >
           {/* Sparkle decorations */}
           <motion.div
@@ -196,7 +196,7 @@ export default function BirthdayCelebration({ userName, userImage, onClose }: Bi
           </div>
 
           {/* Floating balloons effect */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-2xl">
+          <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-md">
             {[...Array(6)].map((_, i) => (
               <motion.div
                 key={i}

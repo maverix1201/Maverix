@@ -195,7 +195,7 @@ export default function AnnouncementModal({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.8, y: 50 }}
           transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-          className="relative bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-4 md:p-5 max-w-xl w-full mx-4 border border-white/50 overflow-hidden"
+          className="relative bg-white/95 backdrop-blur-xl rounded-md shadow-2xl p-4 md:p-5 max-w-xl w-full mx-4 border border-white/50 overflow-hidden"
         >
 
           {/* Close Button */}

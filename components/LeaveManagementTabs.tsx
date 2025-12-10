@@ -506,11 +506,17 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
 
   // Filter leaves - show leave requests (not allotted leaves)
   // For HR role, filter out HR's own leave requests and other HR users' requests (only show employee requests)
+  // Also exclude penalty-related leaves
   const leaveRequests = useMemo(() => {
     if (!leaves || leaves.length === 0) return [];
     
     return leaves.filter((leave) => {
       if (leave.allottedBy) return false; // Exclude allotted leaves
+      
+      // Exclude penalty-related leaves (leaves deducted for late clock-in penalties)
+      if (leave.reason && /penalty|late.*clock.*in|exceeded.*max.*late/i.test(leave.reason)) {
+        return false;
+      }
       
       // For HR role, only show employee leave requests (exclude HR users' requests)
       if (role === 'hr' && session?.user) {

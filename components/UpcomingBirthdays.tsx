@@ -88,22 +88,27 @@ export default function UpcomingBirthdays() {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-lg w-full h-[500px] flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between flex-shrink-0 p-5 border-b border-pink-200/50 bg-gradient-to-r from-pink-400 via-rose-400 to-orange-400">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-white/20 backdrop-blur-sm rounded-xl shadow-lg border border-white/30">
-            <Gift className="w-5 h-5 text-white" />
+    <div className="bg-white rounded-md border border-gray-100 shadow-lg w-full h-[400px] flex flex-col overflow-hidden">
+      <div className="flex items-center justify-between flex-shrink-0 p-3 border-b border-gray-200 bg-white">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 bg-pink-100 rounded-md">
+            <Gift className="w-3.5 h-3.5 text-pink-600" />
           </div>
           <div>
-            <h2 className="text-lg font-primary font-bold text-white">Upcoming Birthdays</h2>
-            <p className="text-xs text-white/90 font-secondary mt-0.5">
+            <h2 className="text-sm font-primary font-bold text-gray-900">Upcoming Birthdays</h2>
+            <p className="text-[9px] text-gray-500 font-secondary mt-0.5">
               {birthdays.length} {birthdays.length === 1 ? 'birthday' : 'birthdays'} • Celebrations
             </p>
           </div>
         </div>
+        <div className="px-2.5 py-1 bg-pink-100 rounded-full flex items-center gap-1 flex-shrink-0">
+          <span className="text-xs font-bold text-pink-700 font-primary">
+            {birthdays.length}
+          </span>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+      <div className="flex-1 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-12">
             <LoadingDots size="lg" className="mb-2" />
@@ -118,7 +123,7 @@ export default function UpcomingBirthdays() {
             <p className="text-sm text-gray-500 font-secondary">Birthdays will appear here</p>
           </div>
         ) : (
-          <div className="space-y-2.5">
+          <div className="space-y-1.5">
             {birthdays.map((employee, index) => {
               const birthdayText = getBirthdayText(employee.daysUntil);
               const isTodayBirthday = employee.daysUntil === 0;
@@ -126,51 +131,48 @@ export default function UpcomingBirthdays() {
               return (
                 <motion.div
                   key={employee._id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className={`group bg-white rounded-xl border transition-all duration-200 p-3.5 relative shadow-sm ${
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.03 }}
+                  className={`group rounded-md transition-all duration-200 p-4 relative ${
                     isTodayBirthday
-                      ? 'border-pink-400 hover:border-pink-500 hover:shadow-xl bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 ring-2 ring-pink-200/50'
-                      : 'border-gray-200 hover:border-pink-300 hover:shadow-lg'
+                      ? 'bg-pink-50 hover:bg-pink-100'
+                      : 'bg-white hover:bg-gray-50'
                   }`}
                 >
-                  <div className="flex items-start gap-2.5">
-                    <div className="relative flex-shrink-0">
-                      <div className={`p-1 rounded-xl ${
-                        isTodayBirthday ? 'bg-gradient-to-br from-pink-100 to-rose-100 border-2 border-pink-300' : 'bg-pink-50 border border-pink-100'
-                      }`}>
-                        <UserAvatar
-                          name={employee.name}
-                          image={employee.profileImage}
-                          size="sm"
-                        />
-                      </div>
-                      {isTodayBirthday && (
-                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-gradient-to-br from-yellow-400 to-orange-400 border-2 border-white rounded-full animate-pulse shadow-lg"></div>
-                      )}
-                    </div>
+                  <div className="flex items-center gap-3">
+                    {/* Avatar */}
+                    <UserAvatar
+                      name={employee.name}
+                      image={employee.profileImage}
+                      size="sm"
+                      className="flex-shrink-0"
+                    />
+                    
+                    {/* Name and Date */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-0.5">
-                        <h3 className={`text-sm font-primary font-bold truncate ${
-                          isTodayBirthday ? 'text-pink-700' : 'text-gray-800'
-                        }`}>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-semibold text-gray-900 font-primary leading-tight">
                           {employee.name}
-                        </h3>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold font-secondary whitespace-nowrap ${
-                          isTodayBirthday
-                            ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white'
-                            : 'bg-pink-100 text-pink-700 border border-pink-200'
-                        }`}>
-                          {birthdayText}
                         </span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <Calendar className="w-2.5 h-2.5 text-gray-400" />
+                          <span className="text-[10px] text-gray-500 font-secondary leading-tight">
+                            {formatBirthdayDate(employee.dateOfBirth)}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <Calendar className="w-2.5 h-2.5 text-gray-400" />
-                        <span className="text-[10px] text-gray-500 font-secondary">
-                          {formatBirthdayDate(employee.dateOfBirth)}
-                        </span>
-                      </div>
+                    </div>
+                    
+                    {/* Days Badge */}
+                    <div className="flex-shrink-0">
+                      <span className={`px-2 py-1 rounded-full text-[10px] font-bold font-secondary whitespace-nowrap ${
+                        isTodayBirthday
+                          ? 'bg-pink-500 text-white'
+                          : 'bg-pink-100 text-pink-700'
+                      }`}>
+                        {birthdayText}
+                      </span>
                     </div>
                   </div>
                 </motion.div>

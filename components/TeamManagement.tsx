@@ -485,7 +485,7 @@ export default function TeamManagement() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ duration: 0.2 }}
-              className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/50 p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              className="bg-white/95 backdrop-blur-xl rounded-md shadow-2xl border border-white/50 p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-primary font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">

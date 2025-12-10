@@ -217,7 +217,7 @@ export default function EmployeeSearch() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white/90 backdrop-blur-xl rounded-2xl p-6 w-full max-w-md border border-white/20"
+              className="bg-white/90 backdrop-blur-xl rounded-md p-6 w-full max-w-md border border-white/20"
             >
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-primary font-bold text-gray-800">Employee Details</h2>

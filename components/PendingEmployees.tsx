@@ -76,21 +76,21 @@ export default function PendingEmployees() {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-lg h-full flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between flex-shrink-0 p-5 border-b border-yellow-200/50 bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-white/20 backdrop-blur-sm rounded-xl shadow-lg border border-white/30">
-            <Clock className="w-5 h-5 text-white" />
+    <div className="bg-white rounded-md border border-gray-100 shadow-lg h-full flex flex-col overflow-hidden">
+      <div className="flex items-center justify-between flex-shrink-0 p-3 border-b border-gray-200 bg-white">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 bg-yellow-100 rounded-md">
+            <Clock className="w-3.5 h-3.5 text-yellow-600" />
           </div>
           <div>
-            <h2 className="text-lg font-primary font-bold text-white">Pending Approvals</h2>
-            <p className="text-xs text-white/90 font-secondary mt-0.5">
+            <h2 className="text-sm font-primary font-bold text-gray-900">Pending Approvals</h2>
+            <p className="text-[9px] text-gray-500 font-secondary mt-0.5">
               {employees.length} {employees.length === 1 ? 'employee' : 'employees'} waiting for approval
             </p>
           </div>
         </div>
         {employees.length > 0 && (
-          <span className="px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-full text-sm font-bold font-secondary shadow-lg border border-white/30">
+          <span className="px-2.5 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-bold font-secondary">
             {employees.length}
           </span>
         )}

@@ -428,7 +428,7 @@ export default function Feed() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-md border border-gray-100 p-6 hover:shadow-lg transition-all duration-300 relative z-10"
+          className="bg-white/90 backdrop-blur-sm rounded-md shadow-md border border-gray-100 p-6 hover:shadow-lg transition-all duration-300 relative z-10"
         >
           <div className="flex items-start gap-4 mb-5">
             <div className="relative">
@@ -547,7 +547,7 @@ export default function Feed() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-md border border-gray-100 p-12 text-center"
+            className="bg-white/90 backdrop-blur-sm rounded-md shadow-md border border-gray-100 p-12 text-center"
           >
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary/10 to-purple-600/10 rounded-full mb-4">
               <MessageSquare className="w-8 h-8 text-primary" />

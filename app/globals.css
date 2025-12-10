@@ -32,12 +32,46 @@
   }
 }
 
+html {
+  /* Prevent black bar on scroll - ensure background covers entire viewport */
+  background-color: var(--background);
+  height: 100%;
+  height: -webkit-fill-available;
+  /* Full viewport coverage for iOS */
+  width: 100%;
+  position: relative;
+}
+
 body {
   color: var(--foreground);
   background: var(--background);
   font-family: 'Gotham', var(--font-open-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Prevent black bar on scroll */
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  /* Ensure background extends to edges including status bar area */
+  background-color: var(--background);
+  position: relative;
+  /* Prevent overscroll bounce showing black */
+  overscroll-behavior: none;
+  /* Full width */
+  width: 100%;
+  overflow-x: hidden;
+  /* iOS safe area insets - add padding to content, not body */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Ensure main content area respects safe areas */
+#__next {
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  background-color: var(--background);
+  position: relative;
 }
 
 /* width */

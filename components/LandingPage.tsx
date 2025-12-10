@@ -47,7 +47,7 @@ export default function LandingPage() {
       </div>
 
       {/* Scrollable Content */}
-      <div className="relative z-10 flex flex-col flex-grow">
+      <div className="relative z-10 flex flex-col h-screen">
         {/* Navigation */}
         <nav className="relative z-20 px-6 py-6">
           <div className="max-w-7xl mx-auto flex items-center justify-center">
@@ -62,7 +62,7 @@ export default function LandingPage() {
         </nav>
 
         {/* Hero Section */}
-        <section className="relative z-10 px-2 py-10 md:py-10 flex-grow flex items-center">
+        <section className="relative z-10 px-2 py-20 md:py-10 flex-grow flex">
           <div className="max-w-7xl mx-auto w-full">
             <div className="text-center relative">
               {/* Abstract Glowing Graphic Behind Text */}

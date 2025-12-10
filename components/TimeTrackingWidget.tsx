@@ -346,6 +346,14 @@ export default function TimeTrackingWidget() {
     return format(date, 'yyyy-MM-dd');
   });
 
+  // Helper function to clean description text
+  const cleanDescription = (description: string): string => {
+    if (!description) return '';
+    // Remove the observance text
+    const observancePattern = /Observance\s+To\s+hide\s+observances,?\s+go\s+to\s+Google\s+Calendar\s+Settings\s+>\s+Holidays\s+in\s+India/gi;
+    return description.replace(observancePattern, '').trim();
+  };
+
   // Fetch calendar events for the current month
   const fetchCalendarEvents = useCallback(async () => {
     try {
@@ -369,7 +377,7 @@ export default function TimeTrackingWidget() {
             }
             eventsByDate[event.date].push({
               summary: event.summary || 'Event',
-              description: event.description || '',
+              description: cleanDescription(event.description || ''),
             });
           }
         });
@@ -403,7 +411,7 @@ export default function TimeTrackingWidget() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="relative bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 h-full flex flex-col"
+              className="relative bg-white rounded-md shadow-lg overflow-hidden border border-gray-200 h-full flex flex-col"
             >
         <div className="p-6 flex-1 flex flex-col">
           {/* Status Badge - Clocked In */}
@@ -592,7 +600,7 @@ export default function TimeTrackingWidget() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="relative bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 h-full"
+              className="relative bg-white rounded-md shadow-lg overflow-hidden border border-gray-200 h-full"
             >
         <div className="p-2.5 h-full flex flex-col">
           {/* Calendar Header with Navigation - Ultra Compact */}
@@ -710,7 +718,7 @@ export default function TimeTrackingWidget() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 h-full flex flex-col"
+          className="relative bg-white rounded-md shadow-lg overflow-hidden border border-gray-200 h-full flex flex-col"
         >
           <div className="p-6 flex-1 flex flex-col">
             {/* Status Badge - Clocked In */}
@@ -897,7 +905,7 @@ export default function TimeTrackingWidget() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="relative bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 h-full"
+          className="relative bg-white rounded-md shadow-lg overflow-hidden border border-gray-200 h-full"
         >
           <div className="p-2.5 h-full flex flex-col">
             {/* Calendar Header with Navigation - Ultra Compact */}
@@ -1011,7 +1019,7 @@ export default function TimeTrackingWidget() {
                 className="fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] max-w-sm"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+                <div className="bg-white rounded-md shadow-2xl border border-gray-200 overflow-hidden">
                   {/* Header */}
                   <div className="bg-gradient-to-r from-green-500 to-green-600 px-4 py-3 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -1038,11 +1046,14 @@ export default function TimeTrackingWidget() {
                             <h4 className="text-sm md:text-base font-semibold text-gray-900 font-primary mb-1">
                               {event.summary}
                             </h4>
-                            {event.description && (
+                            {event.description && cleanDescription(event.description) && (
                               <p className="text-xs md:text-sm text-gray-600 font-secondary leading-relaxed mt-1">
-                                {event.description.length > 200 
-                                  ? `${event.description.substring(0, 200)}...` 
-                                  : event.description}
+                                {(() => {
+                                  const cleanedDesc = cleanDescription(event.description);
+                                  return cleanedDesc.length > 200 
+                                    ? `${cleanedDesc.substring(0, 200)}...` 
+                                    : cleanedDesc;
+                                })()}
                               </p>
                             )}
                           </div>

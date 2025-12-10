@@ -70,7 +70,7 @@ export default function NotClockedInModal({ isOpen, onClose }: NotClockedInModal
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
           transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-          className="relative bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col border border-white/50"
+          className="relative bg-white/95 backdrop-blur-xl rounded-md shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col border border-white/50"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}

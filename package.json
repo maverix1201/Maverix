@@ -4,8 +4,6 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "dev:with-cron": "concurrently \"next dev\" \"node scripts/email-cron.js\"",
-    "cron": "node scripts/email-cron.js",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -32,8 +30,6 @@
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
     "autoprefixer": "^10.4.17",
-    "concurrently": "^9.2.1",
-    "dotenv": "^17.2.3",
     "eslint": "^8.56.0",
     "eslint-config-next": "^14.2.0",
     "postcss": "^8.4.35",

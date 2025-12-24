@@ -11,16 +11,15 @@ import {
   IconSearch,
   IconSend,
   IconCheck,
-  IconClock,
-  IconTrash,
-  IconCalendar,
   IconUsers,
   IconMail,
-  IconRefresh,
-  IconChevronDown,
-  IconChevronUp,
   IconCode,
   IconEye,
+  IconTrash,
+  IconClock,
+  IconChevronDown,
+  IconChevronUp,
+  IconX,
 } from '@tabler/icons-react';
 
 interface Employee {
@@ -31,15 +30,17 @@ interface Employee {
   profileImage?: string;
 }
 
-interface ScheduledEmail {
+interface EmailHistory {
   _id: string;
   subject: string;
-  scheduledFor?: string;
+  html?: string; // HTML content of the email
   userIds: Array<{ _id: string; name: string; email: string; profileImage?: string }>;
+  openedBy?: Array<{ _id: string; name?: string; email?: string }> | string[];
+  openedByIds?: string[]; // Array of user IDs who opened the email (for comparison)
+  sentAt: string;
   createdAt: string;
-  sentAt?: string;
-  sent: boolean;
 }
+
 
 export default function HrWishingPage() {
   const { data: session } = useSession();
@@ -53,14 +54,10 @@ export default function HrWishingPage() {
   const [subject, setSubject] = useState('');
   const [htmlBody, setHtmlBody] = useState('');
   const [htmlTab, setHtmlTab] = useState<'html' | 'preview'>('html');
-  const [schedule, setSchedule] = useState(false);
-  const [scheduledFor, setScheduledFor] = useState('');
-  const [scheduledEmails, setScheduledEmails] = useState<ScheduledEmail[]>([]);
-  const [emailHistory, setEmailHistory] = useState<ScheduledEmail[]>([]);
-  const [loadingScheduled, setLoadingScheduled] = useState(false);
-  const [expandedScheduled, setExpandedScheduled] = useState(true);
-  const [processingScheduled, setProcessingScheduled] = useState(false);
-  const [activeTab, setActiveTab] = useState<'scheduled' | 'history'>('scheduled');
+  const [emailHistory, setEmailHistory] = useState<EmailHistory[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [expandedHistory, setExpandedHistory] = useState(true);
+  const [viewEmail, setViewEmail] = useState<EmailHistory | null>(null);
 
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -86,79 +83,41 @@ export default function HrWishingPage() {
     };
 
     fetchEmployees();
-    fetchScheduledEmails();
+    fetchEmailHistory();
+
+    // Auto-refresh email history every 30 seconds to update open status
+    const refreshInterval = setInterval(() => {
+      fetchEmailHistory();
+    }, 30000);
+
+    return () => clearInterval(refreshInterval);
   }, [toast]);
 
-  // Auto-process scheduled emails every minute
-  useEffect(() => {
-    const processScheduledEmails = async () => {
-      try {
-        const res = await fetch('/api/hr/wishing/scheduled', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-        const data = await res.json();
-        if (res.ok && data.processed > 0) {
-          // Refresh scheduled emails list
-          fetchScheduledEmails();
-        }
-      } catch (err) {
-        console.error('Error processing scheduled emails:', err);
-      }
-    };
-
-    // Process immediately on mount
-    processScheduledEmails();
-
-    // Then process every minute
-    const interval = setInterval(processScheduledEmails, 60000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchScheduledEmails = async () => {
+  const fetchEmailHistory = async () => {
     try {
-      setLoadingScheduled(true);
-      const res = await fetch('/api/hr/wishing', { cache: 'no-store' });
-      const data = await res.json();
-      if (res.ok) {
-        setScheduledEmails(data.scheduledEmails || []);
-        setEmailHistory(data.emailHistory || []);
-      }
-    } catch (err) {
-      console.error('Fetch scheduled emails error', err);
-    } finally {
-      setLoadingScheduled(false);
-    }
-  };
-
-  const handleProcessScheduled = async () => {
-    try {
-      setProcessingScheduled(true);
-      const res = await fetch('/api/hr/wishing/scheduled', {
-        method: 'POST',
+      setLoadingHistory(true);
+      const res = await fetch('/api/hr/wishing', { 
+        cache: 'no-store',
         headers: {
-          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
         },
       });
       const data = await res.json();
       if (res.ok) {
-        if (data.processed > 0) {
-          toast.success(`✅ Processed ${data.processed} scheduled email(s). ${data.sent} email(s) sent successfully.`);
-        } else {
-          toast.info('No scheduled emails ready to send.');
-        }
-        fetchScheduledEmails();
+        console.log('Email history response:', data);
+        console.log('Email history count:', data.count || data.emailHistory?.length || 0);
+        const history = data.emailHistory || [];
+        console.log('Setting email history:', history.length, 'emails');
+        setEmailHistory(history);
       } else {
-        toast.error(data.error || 'Failed to process scheduled emails.');
+        console.error('Failed to fetch email history:', data.error);
+        toast.error(data.error || 'Failed to load email history');
       }
     } catch (err) {
-      console.error('Process scheduled emails error', err);
-      toast.error('Could not process scheduled emails.');
+      console.error('Fetch email history error', err);
+      toast.error('Could not load email history');
     } finally {
-      setProcessingScheduled(false);
+      setLoadingHistory(false);
     }
   };
 
@@ -220,14 +179,6 @@ export default function HrWishingPage() {
       toast.error('HTML body is required.');
       return;
     }
-    if (schedule && !scheduledFor) {
-      toast.error('Please select a date and time for scheduling.');
-      return;
-    }
-    if (schedule && new Date(scheduledFor) < new Date()) {
-      toast.error('Scheduled date must be in the future.');
-      return;
-    }
 
     try {
       setSending(true);
@@ -238,47 +189,42 @@ export default function HrWishingPage() {
           userIds: Array.from(selectedIds),
           subject,
           html: htmlBody,
-          schedule,
-          scheduledFor: schedule ? scheduledFor : undefined,
         }),
       });
       const data = await res.json();
       if (res.ok) {
-        if (schedule) {
-          toast.success(`Email scheduled for ${new Date(scheduledFor).toLocaleString()}.`);
-          setSchedule(false);
-          setScheduledFor('');
-        } else {
-          toast.success(`Email sent to ${selectedIds.size} recipient(s).`);
-        }
+        toast.success(`Email sent to ${selectedIds.size} recipient(s).`);
         setSelectedIds(new Set());
         setSubject('');
         setHtmlBody('');
-        fetchScheduledEmails();
+        // Refresh email history after a short delay to ensure it's saved
+        setTimeout(() => {
+          fetchEmailHistory();
+        }, 500);
       } else {
-        toast.error(data.error || 'Failed to send/schedule emails.');
+        toast.error(data.error || 'Failed to send emails.');
       }
     } catch (err) {
       console.error('Send wishing email error', err);
-      toast.error('Could not send/schedule emails.');
+      toast.error('Could not send emails.');
     } finally {
       setSending(false);
     }
   };
 
-  const handleDeleteScheduled = async (id: string, isHistory: boolean = false) => {
-    if (!confirm(`Are you sure you want to delete this ${isHistory ? 'sent' : 'scheduled'} email?`)) {
+  const handleDeleteHistory = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this email from history?')) {
       return;
     }
 
     try {
-      const res = await fetch(`/api/hr/wishing/scheduled/${id}`, {
+      const res = await fetch(`/api/hr/wishing/${id}`, {
         method: 'DELETE',
       });
       const data = await res.json();
       if (res.ok) {
-        toast.success(`${isHistory ? 'Email history' : 'Scheduled email'} deleted.`);
-        fetchScheduledEmails();
+        toast.success('Email deleted from history.');
+        fetchEmailHistory();
       } else {
         toast.error(data.error || 'Failed to delete email.');
       }
@@ -286,24 +232,6 @@ export default function HrWishingPage() {
       console.error('Delete email error', err);
       toast.error('Could not delete email.');
     }
-  };
-
-  const userName = session?.user?.name || 'HR';
-
-  const formatTimeUntil = (date: string) => {
-    const now = new Date();
-    const scheduled = new Date(date);
-    const diff = scheduled.getTime() - now.getTime();
-
-    if (diff < 0) return 'Overdue';
-
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-    if (days > 0) return `${days}d ${hours}h`;
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    return `${minutes}m`;
   };
 
   return (
@@ -319,11 +247,11 @@ export default function HrWishingPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
           {/* Main Content - Email Form */}
-          <div className="lg:col-span-2 space-y-4">
+          <div className="lg:col-span-2 space-y-4 flex flex-col">
             {/* Email Composition Card */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex-1 flex flex-col">
               <div className="bg-gradient-to-r from-primary/5 to-primary/10 px-4 py-2.5 border-b border-gray-200">
                 <h2 className="text-base font-semibold text-gray-800 flex items-center gap-2">
                   <IconMail className="w-4 h-4 text-primary" />
@@ -331,7 +259,7 @@ export default function HrWishingPage() {
                 </h2>
               </div>
 
-              <div className="p-4 space-y-3">
+              <div className="p-4 space-y-3 flex-1 flex flex-col">
                 {/* Subject */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
@@ -348,7 +276,7 @@ export default function HrWishingPage() {
                 </div>
 
                 {/* HTML Body */}
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 flex-1 flex flex-col min-h-0">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
                       <span>HTML Body</span>
@@ -357,7 +285,7 @@ export default function HrWishingPage() {
                   </div>
 
                   {/* Tabs */}
-                  <div className="flex gap-1 border-b border-gray-200">
+                  <div className="flex gap-1 border-b border-gray-200 flex-shrink-0">
                     <button
                       type="button"
                       onClick={() => setHtmlTab('html')}
@@ -386,7 +314,7 @@ export default function HrWishingPage() {
                   {/* Tab Content */}
                   {htmlTab === 'html' ? (
                     <>
-                      <div className="h-[400px] border border-gray-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition">
+                      <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition min-h-[400px]">
                         <textarea
                           value={htmlBody}
                           onChange={(e) => setHtmlBody(e.target.value)}
@@ -394,13 +322,13 @@ export default function HrWishingPage() {
                           className="w-full h-full px-3 py-2 text-sm font-mono outline-none bg-white resize-none overflow-y-auto border-0"
                         />
                       </div>
-                      <p className="text-[10px] text-gray-500 flex items-center gap-1">
+                      <p className="text-[10px] text-gray-500 flex items-center gap-1 flex-shrink-0">
                         <IconCheck className="w-2.5 h-2.5" />
                         Supports HTML. Use <code className="bg-gray-100 px-1 rounded">${'{'}data.employeeName{'}'}</code> for personalized names
                       </p>
                     </>
                   ) : (
-                    <div className="border border-gray-200 rounded-lg bg-white h-[400px] overflow-y-auto">
+                    <div className="flex-1 border border-gray-200 rounded-lg bg-white overflow-y-auto min-h-[400px]">
                       {htmlBody.trim() ? (
                         <div
                           className="prose max-w-none text-sm text-gray-800 p-4"
@@ -419,88 +347,8 @@ export default function HrWishingPage() {
                   )}
                 </div>
 
-                {/* Schedule Section */}
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-3 border border-blue-100">
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="flex items-center gap-2 cursor-pointer group">
-                      <input
-                        type="checkbox"
-                        checked={schedule}
-                        onChange={(e) => {
-                          setSchedule(e.target.checked);
-                          if (e.target.checked && !scheduledFor) {
-                            const tomorrow = new Date();
-                            tomorrow.setDate(tomorrow.getDate() + 1);
-                            tomorrow.setHours(9, 0, 0, 0);
-                            setScheduledFor(tomorrow.toISOString().slice(0, 16));
-                          }
-                        }}
-                        className="w-4 h-4 text-primary border-2 border-gray-300 rounded focus:ring-2 focus:ring-primary cursor-pointer"
-                      />
-                      <div className="flex items-center gap-1.5">
-                        <div className="p-1.5 bg-blue-100 rounded group-hover:bg-blue-200 transition">
-                          <IconClock className="w-4 h-4 text-blue-600" />
-                        </div>
-                        <span className="text-xs font-semibold text-gray-800">Schedule Email</span>
-                      </div>
-                    </label>
-                  </div>
-
-                  {schedule && (
-                    <div className="space-y-2 animate-in slide-in-from-top-2 duration-200">
-                      <div className="bg-white rounded-lg p-3 border border-blue-100">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-semibold text-gray-600 uppercase tracking-wide flex items-center gap-1">
-                              <IconCalendar className="w-3 h-3" />
-                              Date
-                            </label>
-                            <input
-                              type="date"
-                              value={scheduledFor ? scheduledFor.split('T')[0] : ''}
-                              onChange={(e) => {
-                                const date = e.target.value;
-                                const time = scheduledFor ? scheduledFor.split('T')[1] : '09:00';
-                                setScheduledFor(date ? `${date}T${time}` : '');
-                              }}
-                              min={new Date().toISOString().split('T')[0]}
-                              className="w-full rounded border border-gray-200 px-2 py-1.5 text-xs font-medium text-gray-900 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-semibold text-gray-600 uppercase tracking-wide flex items-center gap-1">
-                              <IconClock className="w-3 h-3" />
-                              Time
-                            </label>
-                            <input
-                              type="time"
-                              value={scheduledFor ? scheduledFor.split('T')[1] : ''}
-                              onChange={(e) => {
-                                const time = e.target.value;
-                                const date = scheduledFor ? scheduledFor.split('T')[0] : new Date().toISOString().split('T')[0];
-                                setScheduledFor(time ? `${date}T${time}` : '');
-                              }}
-                              className="w-full rounded border border-gray-200 px-2 py-1.5 text-xs font-medium text-gray-900 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
-                            />
-                          </div>
-                        </div>
-                        {scheduledFor && (
-                          <div className="mt-2 pt-2 border-t border-gray-100">
-                            <div className="text-[10px] text-gray-500 mb-0.5">Scheduled:</div>
-                            <div className="text-xs font-semibold text-gray-900">
-                              {new Date(scheduledFor).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                              <span className="mx-1 text-gray-400">•</span>
-                              {new Date(scheduledFor).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
                 {/* Recipients Summary */}
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 flex-shrink-0">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-primary/10 rounded-lg">
                       <IconUsers className="w-5 h-5 text-primary" />
@@ -536,25 +384,17 @@ export default function HrWishingPage() {
                   type="button"
                   onClick={handleSend}
                   disabled={sending}
-                  className={`w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg text-sm font-semibold transition shadow-sm ${schedule
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700'
-                    : 'bg-primary text-white hover:bg-primary/90'
-                    } disabled:opacity-70 disabled:cursor-not-allowed`}
+                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg text-sm font-semibold transition shadow-sm bg-primary text-white hover:bg-primary/90 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   {sending ? (
                     <>
                       <LoadingDots size="sm" />
-                      {schedule ? 'Scheduling...' : 'Sending...'}
-                    </>
-                  ) : schedule ? (
-                    <>
-                      <IconCalendar className="w-5 h-5" />
-                      Schedule Email
+                      Sending...
                     </>
                   ) : (
                     <>
                       <IconSend className="w-5 h-5" />
-                      Send Email Now
+                      Send Email
                     </>
                   )}
                 </button>
@@ -639,252 +479,232 @@ export default function HrWishingPage() {
           </div>
         </div>
 
-        {/* Email History & Scheduled Section */}
+        {/* Email History Section */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="bg-gradient-to-r from-indigo-50 to-blue-50 px-4 py-2.5 border-b border-gray-200">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 bg-indigo-100 rounded">
                   <IconMail className="w-4 h-4 text-indigo-600" />
                 </div>
                 <h2 className="text-sm font-semibold text-gray-800">Email History</h2>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {activeTab === 'scheduled' && (
-                  <button
-                    onClick={handleProcessScheduled}
-                    disabled={processingScheduled}
-                    className="inline-flex items-center gap-1.5 px-2 py-1 rounded border border-indigo-200 bg-white text-[10px] font-semibold text-indigo-700 hover:bg-indigo-50 transition disabled:opacity-50"
-                    title="Manually process scheduled emails"
-                  >
-                    <IconRefresh className={`w-3 h-3 ${processingScheduled ? 'animate-spin' : ''}`} />
-                    Process
-                  </button>
+                {emailHistory.length > 0 && (
+                  <span className="ml-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-xs font-semibold">
+                    {emailHistory.length}
+                  </span>
                 )}
-                <button
-                  onClick={() => setExpandedScheduled(!expandedScheduled)}
-                  className="p-1 hover:bg-white/50 rounded transition"
-                >
-                  {expandedScheduled ? (
-                    <IconChevronUp className="w-3.5 h-3.5 text-gray-600" />
-                  ) : (
-                    <IconChevronDown className="w-3.5 h-3.5 text-gray-600" />
-                  )}
-                </button>
               </div>
-            </div>
-
-            {/* Tabs */}
-            <div className="flex gap-1.5">
               <button
-                onClick={() => setActiveTab('scheduled')}
-                className={`px-3 py-1.5 rounded text-xs font-semibold transition ${activeTab === 'scheduled'
-                  ? 'bg-white text-indigo-700 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                onClick={() => setExpandedHistory(!expandedHistory)}
+                className="p-1 hover:bg-white/50 rounded transition"
               >
-                <div className="flex items-center gap-1.5">
-                  <IconClock className="w-3.5 h-3.5" />
-                  <span>Scheduled</span>
-                  {scheduledEmails.length > 0 && (
-                    <span className="ml-1 px-1 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-[10px]">
-                      {scheduledEmails.length}
-                    </span>
-                  )}
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab('history')}
-                className={`px-3 py-1.5 rounded text-xs font-semibold transition ${activeTab === 'history'
-                  ? 'bg-white text-indigo-700 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-                  }`}
-              >
-                <div className="flex items-center gap-1.5">
-                  <IconSend className="w-3.5 h-3.5" />
-                  <span>Sent</span>
-                  {emailHistory.length > 0 && (
-                    <span className="ml-1 px-1 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-[10px]">
-                      {emailHistory.length}
-                    </span>
-                  )}
-                </div>
+                {expandedHistory ? (
+                  <IconChevronUp className="w-3.5 h-3.5 text-gray-600" />
+                ) : (
+                  <IconChevronDown className="w-3.5 h-3.5 text-gray-600" />
+                )}
               </button>
             </div>
           </div>
 
-          {expandedScheduled && (
+          {expandedHistory && (
             <div className="p-4">
-              {loadingScheduled ? (
+              {loadingHistory ? (
                 <div className="flex justify-center py-8">
                   <LoadingDots size="md" />
                 </div>
-              ) : activeTab === 'scheduled' ? (
-                scheduledEmails.length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <IconClock className="w-6 h-6 text-gray-400" />
-                    </div>
-                    <p className="text-xs font-medium text-gray-600 mb-1">No scheduled emails</p>
-                    <p className="text-[10px] text-gray-500">Schedule an email to see it here</p>
+              ) : emailHistory.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <IconSend className="w-6 h-6 text-gray-400" />
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    {scheduledEmails.map((email) => {
-                      const scheduledDate = email.scheduledFor ? new Date(email.scheduledFor) : null;
-                      const recipientCount = email.userIds?.length || 0;
-                      const timeUntil = scheduledDate ? formatTimeUntil(email.scheduledFor!) : '';
-                      const isOverdue = scheduledDate ? scheduledDate < new Date() : false;
-
-                      return (
-                        <div
-                          key={email._id}
-                          className={`border rounded-lg p-3 transition-all ${isOverdue
-                            ? 'border-red-200 bg-red-50/50'
-                            : 'border-indigo-200 bg-gradient-to-br from-indigo-50/50 to-blue-50/50 hover:shadow-sm'
-                            }`}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start gap-2 mb-2">
-                                <div className={`p-1.5 rounded ${isOverdue ? 'bg-red-100' : 'bg-indigo-100'}`}>
-                                  <IconCalendar className={`w-3.5 h-3.5 ${isOverdue ? 'text-red-600' : 'text-indigo-600'}`} />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <h3 className="text-xs font-bold text-gray-900 mb-1 truncate">{email.subject}</h3>
-                                  {scheduledDate && (
-                                    <div className="flex flex-wrap items-center gap-2 text-[10px]">
-                                      <div className="flex items-center gap-1 text-gray-600">
-                                        <IconClock className="w-3 h-3" />
-                                        <span className="font-medium">
-                                          {scheduledDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                        </span>
-                                        <span className="text-gray-500">
-                                          {scheduledDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                                        </span>
-                                      </div>
-                                      <div className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${isOverdue ? 'bg-red-100 text-red-700' : 'bg-indigo-100 text-indigo-700'
-                                        }`}>
-                                        {isOverdue ? 'Overdue' : `In ${timeUntil}`}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 text-[10px] text-gray-600 mb-2">
-                                <IconUsers className="w-3 h-3" />
-                                <span className="font-medium">{recipientCount} {recipientCount === 1 ? 'recipient' : 'recipients'}</span>
-                              </div>
-                              {email.userIds && email.userIds.length > 0 && (
-                                <div className="flex flex-wrap gap-1">
-                                  {email.userIds.slice(0, 3).map((user: any) => (
-                                    <span key={user._id} className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white border border-gray-200 text-[10px] font-medium text-gray-700 rounded">
-                                      <UserAvatar name={user.name} image={user.profileImage} size="xs" />
-                                      <span className="truncate max-w-[60px]">{user.name}</span>
-                                    </span>
-                                  ))}
-                                  {email.userIds.length > 3 && (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 bg-white border border-gray-200 text-[10px] font-medium text-gray-700 rounded">
-                                      +{email.userIds.length - 3}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                            <button
-                              onClick={() => handleDeleteScheduled(email._id, false)}
-                              className="p-1.5 text-red-600 hover:bg-red-100 rounded transition flex-shrink-0"
-                              title="Delete"
-                            >
-                              <IconTrash className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )
+                  <p className="text-xs font-medium text-gray-600 mb-1">No email history</p>
+                  <p className="text-[10px] text-gray-500">Sent emails will appear here</p>
+                </div>
               ) : (
-                emailHistory.length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <IconSend className="w-6 h-6 text-gray-400" />
-                    </div>
-                    <p className="text-xs font-medium text-gray-600 mb-1">No sent emails</p>
-                    <p className="text-[10px] text-gray-500">Sent emails will appear here</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {emailHistory.map((email) => {
-                      const sentDate = email.sentAt ? new Date(email.sentAt) : new Date(email.createdAt);
-                      const recipientCount = email.userIds?.length || 0;
+                <div className="space-y-2">
+                  {emailHistory.map((email) => {
+                    const sentDate = new Date(email.sentAt || email.createdAt);
+                    const recipientCount = email.userIds?.length || 0;
 
-                      return (
-                        <div
-                          key={email._id}
-                          className="border border-green-200 bg-gradient-to-br from-green-50/50 to-emerald-50/50 rounded-lg p-3 hover:shadow-sm transition-all"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start gap-2 mb-2">
-                                <div className="p-1.5 bg-green-100 rounded">
-                                  <IconCheck className="w-3.5 h-3.5 text-green-600" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <h3 className="text-xs font-bold text-gray-900 mb-1 truncate">{email.subject}</h3>
-                                  <div className="flex flex-wrap items-center gap-2 text-[10px]">
-                                    <div className="flex items-center gap-1 text-gray-600">
-                                      <IconClock className="w-3 h-3" />
-                                      <span className="font-medium">
-                                        Sent {sentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                      </span>
-                                      <span className="text-gray-500">
-                                        {sentDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                                      </span>
-                                    </div>
-                                    <div className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px] font-semibold">
-                                      Sent
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 text-[10px] text-gray-600 mb-2">
-                                <IconUsers className="w-3 h-3" />
-                                <span className="font-medium">{recipientCount} {recipientCount === 1 ? 'recipient' : 'recipients'}</span>
-                              </div>
-                              {email.userIds && email.userIds.length > 0 && (
-                                <div className="flex flex-wrap gap-1">
-                                  {email.userIds.slice(0, 3).map((user: any) => (
-                                    <span key={user._id} className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white border border-gray-200 text-[10px] font-medium text-gray-700 rounded">
-                                      <UserAvatar name={user.name} image={user.profileImage} size="xs" />
-                                      <span className="truncate max-w-[60px]">{user.name}</span>
-                                    </span>
-                                  ))}
-                                  {email.userIds.length > 3 && (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 bg-white border border-gray-200 text-[10px] font-medium text-gray-700 rounded">
-                                      +{email.userIds.length - 3}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
+                    return (
+                      <div
+                        key={email._id}
+                        className="border border-green-200 bg-gradient-to-br from-green-50/50 to-emerald-50/50 rounded-lg p-2.5 hover:shadow-sm transition-all"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          {/* Left side - Subject and Date */}
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="p-1 bg-green-100 rounded flex-shrink-0">
+                              <IconCheck className="w-3 h-3 text-green-600" />
                             </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-xs font-bold text-gray-900 truncate mb-0.5">{email.subject}</h3>
+                              <div className="flex items-center gap-2 text-[10px] text-gray-600">
+                                <div className="flex items-center gap-1">
+                                  <IconClock className="w-3 h-3" />
+                                  <span>
+                                    {sentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} {sentDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                </div>
+                                <span>•</span>
+                                <span>{recipientCount} {recipientCount === 1 ? 'recipient' : 'recipients'}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Right side - Actions */}
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
                             <button
-                              onClick={() => handleDeleteScheduled(email._id, true)}
-                              className="p-1.5 text-red-600 hover:bg-red-100 rounded transition flex-shrink-0"
+                              onClick={() => setViewEmail(email)}
+                              className="px-2.5 py-1 text-[10px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 rounded transition flex items-center gap-1"
+                              title="View Details"
+                            >
+                              <IconEye className="w-3 h-3" />
+                              View
+                            </button>
+                            <button
+                              onClick={() => handleDeleteHistory(email._id)}
+                              className="p-1.5 text-red-600 hover:bg-red-100 rounded transition"
                               title="Delete"
                             >
                               <IconTrash className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                )
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
           )}
         </div>
+
+        {/* Email Details Modal */}
+        {viewEmail && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setViewEmail(null)}>
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-primary/10 to-primary/5 px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/20 rounded-lg">
+                    <IconMail className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900">Email Details</h2>
+                    <p className="text-xs text-gray-600">View complete email information</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setViewEmail(null)}
+                  className="p-2 hover:bg-white/50 rounded-lg transition"
+                >
+                  <IconX className="w-5 h-5 text-gray-600" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {/* Subject */}
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 block">Subject</label>
+                  <p className="text-sm font-semibold text-gray-900">{viewEmail.subject}</p>
+                </div>
+
+                {/* Sent Date */}
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 block">Sent Date</label>
+                  <div className="flex items-center gap-2 text-sm text-gray-700">
+                    <IconClock className="w-4 h-4" />
+                    <span>
+                      {new Date(viewEmail.sentAt || viewEmail.createdAt).toLocaleDateString('en-US', { 
+                        weekday: 'long',
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })} at {new Date(viewEmail.sentAt || viewEmail.createdAt).toLocaleTimeString('en-US', { 
+                        hour: 'numeric', 
+                        minute: '2-digit',
+                        hour12: true 
+                      })}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Recipients */}
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2 block">Recipients ({viewEmail.userIds?.length || 0})</label>
+                  <div className="space-y-2">
+                    {viewEmail.userIds && viewEmail.userIds.length > 0 ? (
+                      viewEmail.userIds.map((user: any) => {
+                        const userIdStr = String(user._id);
+                        const openedByIds = viewEmail.openedByIds || [];
+                        const openedByArray = viewEmail.openedBy || [];
+                        
+                        const isOpenedByIds = openedByIds.some((id: any) => String(id) === userIdStr);
+                        const isOpenedByObjects = openedByArray.some((item: any) => {
+                          const itemId = item._id ? String(item._id) : String(item);
+                          return itemId === userIdStr;
+                        });
+                        
+                        const isOpened = isOpenedByIds || isOpenedByObjects;
+
+                        return (
+                          <div key={user._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                            <div className="flex items-center gap-3">
+                              <UserAvatar name={user.name} image={user.profileImage} size="sm" />
+                              <div>
+                                <p className="text-sm font-semibold text-gray-900">{user.name}</p>
+                                <p className="text-xs text-gray-600">{user.email}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {isOpened ? (
+                                <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold flex items-center gap-1">
+                                  <span className="text-green-600 font-bold">✓✓</span>
+                                  <span>Opened</span>
+                                </span>
+                              ) : (
+                                <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold flex items-center gap-1">
+                                  <span className="text-gray-400">✓</span>
+                                  <span>Sent</span>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-sm text-gray-500">No recipients found</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* HTML Content Preview */}
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2 block">Email Content</label>
+                  <div className="border border-gray-200 rounded-lg bg-white p-4 max-h-96 overflow-y-auto">
+                    <div
+                      className="prose max-w-none text-sm text-gray-900"
+                      dangerouslySetInnerHTML={{ __html: (viewEmail as any).html || '' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end">
+                <button
+                  onClick={() => setViewEmail(null)}
+                  className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90 transition"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

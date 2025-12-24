@@ -7,6 +7,7 @@ export interface IScheduledEmail extends Document {
   scheduledFor?: Date; // Optional - if not set, it's an immediate send
   sent: boolean;
   sentAt?: Date;
+  openedBy: mongoose.Types.ObjectId[]; // Track which recipients opened the email
   createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -40,6 +41,11 @@ const ScheduledEmailSchema: Schema = new Schema(
     sentAt: {
       type: Date,
     },
+    openedBy: {
+      type: [Schema.Types.ObjectId],
+      ref: 'User',
+      default: [],
+    },
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: 'User',
@@ -48,14 +54,24 @@ const ScheduledEmailSchema: Schema = new Schema(
   },
   {
     timestamps: true,
+    strictPopulate: false, // Allow populating paths that might not be in schema (for backward compatibility)
   }
 );
 
 // Index for efficient querying of unsent scheduled emails
 ScheduledEmailSchema.index({ sent: 1, scheduledFor: 1 });
 
-const ScheduledEmail: Model<IScheduledEmail> =
-  mongoose.models.ScheduledEmail || mongoose.model<IScheduledEmail>('ScheduledEmail', ScheduledEmailSchema);
+// Force recompilation of the model to ensure schema changes take effect
+let ScheduledEmail: Model<IScheduledEmail>;
+if (mongoose.models.ScheduledEmail) {
+  // Delete the old model to force recompilation with new schema
+  delete mongoose.models.ScheduledEmail;
+  // Only delete from modelSchemas if it exists
+  if ((mongoose as any).modelSchemas && (mongoose as any).modelSchemas.ScheduledEmail) {
+    delete (mongoose as any).modelSchemas.ScheduledEmail;
+  }
+}
+ScheduledEmail = mongoose.model<IScheduledEmail>('ScheduledEmail', ScheduledEmailSchema);
 
 export default ScheduledEmail;
 

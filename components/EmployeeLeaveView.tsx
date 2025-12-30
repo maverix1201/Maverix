@@ -72,6 +72,10 @@ export default function EmployeeLeaveView({ initialLeaves, onLeavesUpdated }: Em
     isOpen: false,
     leave: null,
   });
+  const [reasonModal, setReasonModal] = useState<{ isOpen: boolean; reason: string }>({
+    isOpen: false,
+    reason: '',
+  });
   const [deleting, setDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -587,7 +591,12 @@ export default function EmployeeLeaveView({ initialLeaves, onLeavesUpdated }: Em
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="text-sm text-gray-900 max-w-xs truncate font-secondary">{leave.reason}</div>
+                        <button
+                          onClick={() => setReasonModal({ isOpen: true, reason: leave.reason })}
+                          className="bg-blue-100 text-[10px] px-2 py-0.5 rounded-xl text-blue-500 max-w-xs truncate font-secondary hover:text-blue-700 transition-colors text-left"
+                          title="Click to view full reason"
+                        >Click to View
+                        </button>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span
@@ -1262,6 +1271,24 @@ export default function EmployeeLeaveView({ initialLeaves, onLeavesUpdated }: Em
         }
         loading={deleting}
       />
+
+      {/* Reason Modal */}
+      {reasonModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white/80 backdrop-blur-md rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg text-gray-800 font-semibold">Leave Reason</h3>
+              <button
+                onClick={() => setReasonModal({ isOpen: false, reason: '' })}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="bg-white/70 p-3 rounded-md text-gray-700 text-sm whitespace-pre-wrap">{reasonModal.reason}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

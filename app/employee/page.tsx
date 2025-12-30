@@ -17,6 +17,7 @@ import { useToast } from '@/contexts/ToastContext';
 import UserAvatar from '@/components/UserAvatar';
 import LoadingDots from '@/components/LoadingDots';
 import Logo from '@/components/Logo';
+import LogoWhite from '@/components/LogoWhite';
 
 export default function EmployeeDashboard() {
   const { data: session } = useSession();
@@ -379,7 +380,7 @@ export default function EmployeeDashboard() {
         <div className="space-y-6 p-4 md:p-6">
           {/* Logo and Action Buttons - Mobile Only */}
           <div className="flex items-center justify-between md:hidden mb-4">
-            <Logo size="md" />
+            <LogoWhite size="md" />
             <div className="flex items-center gap-2">
               {showAnnouncementButton && (
                 <motion.button

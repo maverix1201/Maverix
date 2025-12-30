@@ -263,7 +263,7 @@ export default function AdminDashboard() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
         <div className="space-y-6 p-4 md:p-6">
           {/* Header */}
-          <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center justify-between gap-4 flex-wrap bg-primary-500 p-3 rounded-xl shadow-md">
             <div className="flex items-center gap-2">
               <UserAvatar
                 name={session?.user?.name || ''}
@@ -271,8 +271,8 @@ export default function AdminDashboard() {
                 size="lg"
               />
               <div>
-                <h1 className="text-2xl font-primary font-bold text-gray-800">Admin Dashboard</h1>
-                <p className="text-sm text-gray-600 mt-0.5 font-secondary">Welcome back, {session?.user?.name?.split(' ')[0] || session?.user?.name}</p>
+                <h1 className="text-2xl font-primary font-bold text-white">Admin Dashboard</h1>
+                <p className="text-sm text-gray-400 mt-0.5 font-secondary">Welcome back, <span className='font-bold text-lg text-secondary'>{session?.user?.name?.split(' ')[0] || session?.user?.name}</span></p>
               </div>
             </div>
             <div className="w-full md:w-auto min-w-[280px] max-w-md">

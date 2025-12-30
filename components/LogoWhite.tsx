@@ -1,11 +1,11 @@
 import Image from 'next/image';
 
-interface LogoProps {
+interface LogoWhiteProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg';
 }
 
-export default function Logo({ className = '', size = 'md' }: LogoProps) {
+export default function LogoWhite({ className = '', size = 'md' }: LogoWhiteProps) {
   const sizes = {
     sm: { width: 100, height: 35 },
     md: { width: 120, height: 40 },
@@ -16,7 +16,7 @@ export default function Logo({ className = '', size = 'md' }: LogoProps) {
 
   return (
     <Image
-      src="./assets/maverix-logo.png"
+      src="/assets/maverix-whitelogo.png"
       alt="MaveriX Logo"
       width={currentSize.width}
       height={currentSize.height}

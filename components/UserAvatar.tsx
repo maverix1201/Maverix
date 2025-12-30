@@ -64,9 +64,9 @@ export default function UserAvatar({ name, image, size = 'md', className = '' }:
 
   // Fallback to initials
   return (
-    <div className={`${currentSize.container} rounded-full bg-primary/10 flex items-center justify-center border-2 border-primary/20 ${className}`}>
+    <div className={`${currentSize.container} rounded-full bg-[#0101b7] flex items-center justify-center  ${className}`}>
       {name ? (
-        <span className={`${currentSize.text} font-primary font-semibold text-primary`}>
+        <span className={`${currentSize.text} font-primary font-semibold text-white`}>
           {getUserInitials(name)}
         </span>
       ) : (

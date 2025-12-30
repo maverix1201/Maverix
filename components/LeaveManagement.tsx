@@ -214,13 +214,13 @@ export default function LeaveManagement({
         );
       }
       toast.success('Leave request approved successfully');
-      
+
       // Dispatch custom event to refresh "on leave" badges immediately
       // Add small delay to ensure database update is complete
       setTimeout(() => {
         window.dispatchEvent(new CustomEvent('leaveStatusChanged'));
       }, 100);
-      
+
       // Refresh the list if callback is provided
       if (onLeaveAdded) {
         onLeaveAdded();
@@ -288,18 +288,18 @@ export default function LeaveManagement({
           )
         );
       }
-      
+
       const successMessage = isApprovedLeave
         ? 'Leave rejected successfully. Leave balance has been restored to the employee.'
         : 'Leave request rejected successfully';
       toast.success(successMessage);
-      
+
       // Dispatch custom event to refresh "on leave" badges immediately
       // Add small delay to ensure database update is complete
       setTimeout(() => {
         window.dispatchEvent(new CustomEvent('leaveStatusChanged'));
       }, 100);
-      
+
       if (onLeaveAdded) onLeaveAdded();
       setRejecting(false);
       setRejectModal({ isOpen: false, leave: null });
@@ -395,17 +395,17 @@ export default function LeaveManagement({
       // Date range filter - filter by "Requested On" date (createdAt)
       if (filterDateFrom || filterDateTo) {
         if (!leave.createdAt) return false;
-        
+
         const requestedDate = new Date(leave.createdAt);
         requestedDate.setHours(0, 0, 0, 0);
-        
+
         // If only from date is set, treat it as a single date filter
         if (filterDateFrom && !filterDateTo) {
           const filterDate = new Date(filterDateFrom);
           filterDate.setHours(0, 0, 0, 0);
           const filterDateEnd = new Date(filterDateFrom);
           filterDateEnd.setHours(23, 59, 59, 999);
-          
+
           // Check if requested date falls within the filter date
           if (requestedDate < filterDate || requestedDate > filterDateEnd) {
             return false;
@@ -417,7 +417,7 @@ export default function LeaveManagement({
           filterDate.setHours(0, 0, 0, 0);
           const filterDateEnd = new Date(filterDateTo);
           filterDateEnd.setHours(23, 59, 59, 999);
-          
+
           // Check if requested date falls within the filter date
           if (requestedDate < filterDate || requestedDate > filterDateEnd) {
             return false;
@@ -429,7 +429,7 @@ export default function LeaveManagement({
           fromDate.setHours(0, 0, 0, 0);
           const toDate = new Date(filterDateTo);
           toDate.setHours(23, 59, 59, 999);
-          
+
           // Check if requested date falls within the filter date range
           if (requestedDate < fromDate || requestedDate > toDate) {
             return false;
@@ -518,40 +518,40 @@ export default function LeaveManagement({
           },
           ...(canApprove && employees.length > 0
             ? [
-                {
-                  label: 'Employee',
-                  key: 'employee',
-                  type: 'select' as const,
-                  value: filterEmployee,
-                  onChange: setFilterEmployee,
-                  options: [
-                    { value: 'all', label: 'All Employees' },
-                    ...employees.map((emp) => ({ value: emp._id, label: emp.name })),
-                  ],
-                },
-              ]
+              {
+                label: 'Employee',
+                key: 'employee',
+                type: 'select' as const,
+                value: filterEmployee,
+                onChange: setFilterEmployee,
+                options: [
+                  { value: 'all', label: 'All Employees' },
+                  ...employees.map((emp) => ({ value: emp._id, label: emp.name })),
+                ],
+              },
+            ]
             : []),
           ...(leaveTypes.length > 0
             ? [
-                {
-                  label: 'Leave Type',
-                  key: 'leaveType',
-                  type: 'select' as const,
-                  value: filterLeaveType,
-                  onChange: setFilterLeaveType,
-                  options: [
-                    { value: 'all', label: 'All Types' },
-                    ...leaveTypes.map((type) => ({ value: type._id, label: type.name })),
-                  ],
-                },
-              ]
+              {
+                label: 'Leave Type',
+                key: 'leaveType',
+                type: 'select' as const,
+                value: filterLeaveType,
+                onChange: setFilterLeaveType,
+                options: [
+                  { value: 'all', label: 'All Types' },
+                  ...leaveTypes.map((type) => ({ value: type._id, label: type.name })),
+                ],
+              },
+            ]
             : []),
           {
             label: 'Date Range',
             key: 'date',
             type: 'dateRange' as const,
             value: '',
-            onChange: () => {},
+            onChange: () => { },
           },
           {
             label: 'From Date',
@@ -640,127 +640,127 @@ export default function LeaveManagement({
                         animate={{ opacity: 1 }}
                         className="hover:bg-gray-50"
                       >
-                  {canApprove && (
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="flex items-center gap-3">
-                        <UserAvatar
-                          name={leave.userId?.name}
-                          image={leave.userId?.profileImage}
-                          size="md"
-                        />
-                        <div>
-                          <div className="text-sm font-medium text-gray-900 font-secondary">
-                            {leave.userId?.name || 'N/A'}
+                        {canApprove && (
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="flex items-center gap-3">
+                              <UserAvatar
+                                name={leave.userId?.name}
+                                image={leave.userId?.profileImage}
+                                size="md"
+                              />
+                              <div>
+                                <div className="text-sm font-medium text-gray-900 font-secondary">
+                                  {leave.userId?.name || 'N/A'}
+                                </div>
+                                <div className="text-xs text-gray-500 font-secondary">{leave.userId?.email || 'N/A'}</div>
+                              </div>
+                            </div>
+                          </td>
+                        )}
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800 capitalize font-secondary">
+                            {typeof leave.leaveType === 'object' ? leave.leaveType?.name : leave.leaveType}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="text-sm text-gray-900 font-secondary">
+                            {(() => {
+                              // Check if this is a shortday leave type
+                              const leaveTypeName = typeof leave.leaveType === 'object' ? leave.leaveType?.name?.toLowerCase() || '' : '';
+                              const isShortDayLeaveType = leaveTypeName.includes('shortday') ||
+                                leaveTypeName.includes('short-day') ||
+                                leaveTypeName.includes('short day');
+
+                              if (isShortDayLeaveType && (leave as any).hours !== undefined) {
+                                // Display hours/minutes for shortday leave types
+                                return formatHoursMinutes((leave as any).hours, (leave as any).minutes);
+                              }
+
+                              // Display days for regular leave types
+                              return leave.days === 0.5 ? '0.5 day' :
+                                leave.days && leave.days < 1 && leave.days > 0 ? `${leave.days.toFixed(2)} day` :
+                                  `${leave.days || 'N/A'} ${leave.days === 1 ? 'day' : 'days'}`;
+                            })()}
+                            {leave.halfDayType && (
+                              <span className="ml-2 text-xs text-purple-600 font-medium">
+                                ({leave.halfDayType === 'first-half' ? 'First Half' : 'Second Half'})
+                              </span>
+                            )}
+                            {leave.shortDayTime && (
+                              <span className="ml-2 text-xs text-blue-600 font-medium">
+                                ({formatTimeRange(leave.shortDayTime)})
+                              </span>
+                            )}
                           </div>
-                          <div className="text-xs text-gray-500 font-secondary">{leave.userId?.email || 'N/A'}</div>
-                        </div>
-                      </div>
-                    </td>
-                  )}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800 capitalize font-secondary">
-                      {typeof leave.leaveType === 'object' ? leave.leaveType?.name : leave.leaveType}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 font-secondary">
-                      {(() => {
-                        // Check if this is a shortday leave type
-                        const leaveTypeName = typeof leave.leaveType === 'object' ? leave.leaveType?.name?.toLowerCase() || '' : '';
-                        const isShortDayLeaveType = leaveTypeName.includes('shortday') || 
-                                                     leaveTypeName.includes('short-day') || 
-                                                     leaveTypeName.includes('short day');
-                        
-                        if (isShortDayLeaveType && (leave as any).hours !== undefined) {
-                          // Display hours/minutes for shortday leave types
-                          return formatHoursMinutes((leave as any).hours, (leave as any).minutes);
-                        }
-                        
-                        // Display days for regular leave types
-                        return leave.days === 0.5 ? '0.5 day' : 
-                               leave.days && leave.days < 1 && leave.days > 0 ? `${leave.days.toFixed(2)} day` : 
-                               `${leave.days || 'N/A'} ${leave.days === 1 ? 'day' : 'days'}`;
-                      })()}
-                      {leave.halfDayType && (
-                        <span className="ml-2 text-xs text-purple-600 font-medium">
-                          ({leave.halfDayType === 'first-half' ? 'First Half' : 'Second Half'})
-                        </span>
-                      )}
-                      {leave.shortDayTime && (
-                        <span className="ml-2 text-xs text-blue-600 font-medium">
-                          ({formatTimeRange(leave.shortDayTime)})
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 font-secondary">
-                      {format(new Date(leave.startDate), 'MMM dd, yyyy')} -{' '}
-                      {format(new Date(leave.endDate), 'MMM dd, yyyy')}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => setReasonModal({ isOpen: true, reason: leave.reason || 'No reason provided' })}
-                      className="text-sm text-primary hover:text-primary-dark underline font-secondary cursor-pointer"
-                    >
-                      Click to view
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-0.5 text-xs font-medium rounded-full font-secondary ${getStatusColor(
-                        leave.status
-                      )}`}
-                    >
-                      {leave.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 font-secondary">
-                      {leave.createdAt ? format(new Date(leave.createdAt), 'MMM dd, yyyy') : 'N/A'}
-                    </div>
-                  </td>
-                  {canApprove && (
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center gap-2">
-                        {leave.status === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => handleApprove(leave._id)}
-                              className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50"
-                              title="Approve"
-                            >
-                              <Check className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleRejectClick(leave)}
-                              className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
-                              title="Reject"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
-                        {leave.status === 'approved' && (
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="text-sm text-gray-900 font-secondary">
+                            {format(new Date(leave.startDate), 'MMM dd, yyyy')} -{' '}
+                            {format(new Date(leave.endDate), 'MMM dd, yyyy')}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
                           <button
-                            onClick={() => handleRejectClick(leave)}
-                            className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
-                            title="Reject Approved Leave (Balance will be restored)"
+                            onClick={() => setReasonModal({ isOpen: true, reason: leave.reason || 'No reason provided' })}
+                            className="bg-blue-100 text-[10px] px-2 py-0.5 rounded-xl text-blue-500 hover:text-primary-dark font-secondary no-underline cursor-pointer"
                           >
-                            <X className="w-4 h-4" />
+                            Click to view
                           </button>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span
+                            className={`px-2 py-0.5 text-xs font-medium rounded-full font-secondary ${getStatusColor(
+                              leave.status
+                            )}`}
+                          >
+                            {leave.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="text-sm text-gray-900 font-secondary">
+                            {leave.createdAt ? format(new Date(leave.createdAt), 'MMM dd, yyyy') : 'N/A'}
+                          </div>
+                        </td>
+                        {canApprove && (
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
+                            <div className="flex items-center gap-2">
+                              {leave.status === 'pending' && (
+                                <>
+                                  <button
+                                    onClick={() => handleApprove(leave._id)}
+                                    className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50"
+                                    title="Approve"
+                                  >
+                                    <Check className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleRejectClick(leave)}
+                                    className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
+                                    title="Reject"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
+                              {leave.status === 'approved' && (
+                                <button
+                                  onClick={() => handleRejectClick(leave)}
+                                  className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
+                                  title="Reject Approved Leave (Balance will be restored)"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDeleteClick(leave)}
+                                className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
                         )}
-                        <button
-                          onClick={() => handleDeleteClick(leave)}
-                          className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  )}
                       </motion.tr>
                     </>
                   );
@@ -812,22 +812,22 @@ export default function LeaveManagement({
               <div>
                 <span className="font-semibold">Days:</span>{' '}
                 {(() => {
-                  const leaveTypeName = typeof rejectModal.leave.leaveType === 'object' 
-                    ? rejectModal.leave.leaveType?.name?.toLowerCase() || '' 
+                  const leaveTypeName = typeof rejectModal.leave.leaveType === 'object'
+                    ? rejectModal.leave.leaveType?.name?.toLowerCase() || ''
                     : '';
-                  const isShortDayLeaveType = leaveTypeName.includes('shortday') || 
-                                               leaveTypeName.includes('short-day') || 
-                                               leaveTypeName.includes('short day');
-                  
+                  const isShortDayLeaveType = leaveTypeName.includes('shortday') ||
+                    leaveTypeName.includes('short-day') ||
+                    leaveTypeName.includes('short day');
+
                   if (isShortDayLeaveType && (rejectModal.leave as any).hours !== undefined) {
                     return formatHoursMinutes((rejectModal.leave as any).hours, (rejectModal.leave as any).minutes);
                   }
-                  
+
                   return rejectModal.leave.days === 0.5 && rejectModal.leave.halfDayType
                     ? rejectModal.leave.halfDayType === 'first-half' ? 'First Half' : 'Second Half'
                     : rejectModal.leave.days && rejectModal.leave.days < 1 && rejectModal.leave.days > 0 && rejectModal.leave.shortDayTime
-                    ? `Short Day (${formatTimeRange(rejectModal.leave.shortDayTime)}) - ${rejectModal.leave.days.toFixed(2)} day`
-                    : `${rejectModal.leave.days || 'N/A'} ${rejectModal.leave.days === 1 ? 'day' : 'days'}`;
+                      ? `Short Day (${formatTimeRange(rejectModal.leave.shortDayTime)}) - ${rejectModal.leave.days.toFixed(2)} day`
+                      : `${rejectModal.leave.days || 'N/A'} ${rejectModal.leave.days === 1 ? 'day' : 'days'}`;
                 })()}
               </div>
               {rejectModal.leave.reason && (
@@ -870,22 +870,22 @@ export default function LeaveManagement({
               <div>
                 <span className="font-semibold">Days:</span>{' '}
                 {(() => {
-                  const leaveTypeName = typeof deleteModal.leave.leaveType === 'object' 
-                    ? deleteModal.leave.leaveType?.name?.toLowerCase() || '' 
+                  const leaveTypeName = typeof deleteModal.leave.leaveType === 'object'
+                    ? deleteModal.leave.leaveType?.name?.toLowerCase() || ''
                     : '';
-                  const isShortDayLeaveType = leaveTypeName.includes('shortday') || 
-                                               leaveTypeName.includes('short-day') || 
-                                               leaveTypeName.includes('short day');
-                  
+                  const isShortDayLeaveType = leaveTypeName.includes('shortday') ||
+                    leaveTypeName.includes('short-day') ||
+                    leaveTypeName.includes('short day');
+
                   if (isShortDayLeaveType && (deleteModal.leave as any).hours !== undefined) {
                     return formatHoursMinutes((deleteModal.leave as any).hours, (deleteModal.leave as any).minutes);
                   }
-                  
+
                   return deleteModal.leave.days === 0.5 && deleteModal.leave.halfDayType
                     ? deleteModal.leave.halfDayType === 'first-half' ? 'First Half' : 'Second Half'
                     : deleteModal.leave.days && deleteModal.leave.days < 1 && deleteModal.leave.days > 0 && deleteModal.leave.shortDayTime
-                    ? `Short Day (${formatTimeRange(deleteModal.leave.shortDayTime)}) - ${deleteModal.leave.days.toFixed(2)} day`
-                    : `${deleteModal.leave.days || 'N/A'} ${deleteModal.leave.days === 1 ? 'day' : 'days'}`;
+                      ? `Short Day (${formatTimeRange(deleteModal.leave.shortDayTime)}) - ${deleteModal.leave.days.toFixed(2)} day`
+                      : `${deleteModal.leave.days || 'N/A'} ${deleteModal.leave.days === 1 ? 'day' : 'days'}`;
                 })()}
               </div>
               <div>
@@ -907,7 +907,7 @@ export default function LeaveManagement({
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-white/95 backdrop-blur-xl rounded-md shadow-2xl p-6 w-full max-w-2xl border border-white/50"
+            className="bg-white/80 backdrop-blur-md rounded-md shadow-2xl p-6 w-full max-w-md border border-white/50"
           >
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-primary font-bold text-gray-800">Leave Reason</h2>
@@ -918,19 +918,19 @@ export default function LeaveManagement({
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+            <div className="bg-white/70 rounded-lg p-4 border border-gray-200">
               <p className="text-sm text-gray-700 font-secondary whitespace-pre-wrap break-words">
                 {reasonModal.reason}
               </p>
             </div>
-            <div className="mt-4 flex justify-end">
+            {/* <div className="mt-4 flex justify-end">
               <button
                 onClick={() => setReasonModal({ isOpen: false, reason: '' })}
                 className="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors font-secondary"
               >
                 Close
               </button>
-            </div>
+            </div> */}
           </motion.div>
         </div>
       )}

@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     const employees = await User.find({
       dateOfBirth: { $exists: true, $ne: null },
     })
-      .select('_id name email profileImage dateOfBirth role')
+      .select('_id name email profileImage dateOfBirth role designation')
       .lean();
 
     const today = new Date();
@@ -28,7 +28,11 @@ export async function GET(request: NextRequest) {
     today.setHours(0, 0, 0, 0);
     const currentYear = today.getFullYear();
 
-    // Calculate upcoming birthdays (next 10, regardless of month)
+    // Check if all birthdays are requested
+    const { searchParams } = new URL(request.url);
+    const getAllBirthdays = searchParams.get('all') === 'true';
+
+    // Calculate upcoming birthdays
     const upcomingBirthdays = employees
       .map((employee: any) => {
         if (!employee.dateOfBirth) return null;
@@ -57,14 +61,32 @@ export async function GET(request: NextRequest) {
           email: employee.email,
           profileImage: employee.profileImage,
           dateOfBirth: employee.dateOfBirth.toISOString().split('T')[0],
+          designation: employee.designation,
           daysUntil,
         };
       })
       .filter((item: any) => item !== null)
-      .sort((a: any, b: any) => a.daysUntil - b.daysUntil)
-      .slice(0, 10); // Limit to 10 upcoming birthdays (regardless of month)
+      .sort((a: any, b: any) => {
+        // Sort by month first, then by day
+        if (getAllBirthdays) {
+          const aMonth = new Date(a.dateOfBirth).getMonth();
+          const bMonth = new Date(b.dateOfBirth).getMonth();
+          const aDay = new Date(a.dateOfBirth).getDate();
+          const bDay = new Date(b.dateOfBirth).getDate();
+          
+          if (aMonth !== bMonth) {
+            return aMonth - bMonth;
+          }
+          return aDay - bDay;
+        }
+        // For upcoming view, sort by days until
+        return a.daysUntil - b.daysUntil;
+      });
 
-    const response = NextResponse.json({ birthdays: upcomingBirthdays });
+    // Limit to 10 upcoming birthdays only if not requesting all
+    const result = getAllBirthdays ? upcomingBirthdays : upcomingBirthdays.slice(0, 10);
+
+    const response = NextResponse.json({ birthdays: result });
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
     response.headers.set('Pragma', 'no-cache');
     response.headers.set('Expires', '0');

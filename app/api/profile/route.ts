@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
+import { generateEmployeeId, shouldGenerateEmployeeId } from '@/utils/generateEmployeeId';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +38,7 @@ export async function GET(request: NextRequest) {
 
     // Convert to plain object and handle large profileImage
     const userObj = user.toObject ? user.toObject() : user;
+    console.log('[Profile API GET] User joiningYear from DB:', userObj.joiningYear);
     
     // If profileImage is included and too large, exclude it to prevent issues
     if (includeImage && userObj.profileImage && typeof userObj.profileImage === 'string') {
@@ -69,7 +71,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { name, mobileNumber, dateOfBirth, profileImage, currentPassword, newPassword, bankName, accountNumber, ifscCode } = await request.json();
+    const { name, mobileNumber, dateOfBirth, joiningYear, profileImage, currentPassword, newPassword, bankName, accountNumber, ifscCode } = await request.json();
 
     await connectDB();
 
@@ -116,6 +118,28 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    // Update joining year
+    if (joiningYear !== undefined) {
+      console.log('[Profile API] joiningYear received:', joiningYear, 'Type:', typeof joiningYear);
+      
+      // Handle null or empty values
+      if (joiningYear === null || joiningYear === '') {
+        updateFields.joiningYear = null;
+        console.log('[Profile API] Setting joiningYear to null');
+      } else {
+        // Convert to number if it's a string
+        const yearNum = typeof joiningYear === 'string' ? parseInt(joiningYear, 10) : joiningYear;
+        console.log('[Profile API] Parsed yearNum:', yearNum, 'isNaN:', isNaN(yearNum), 'Valid range:', yearNum >= 1900 && yearNum <= 2100);
+        
+        if (!isNaN(yearNum) && yearNum >= 1900 && yearNum <= 2100) {
+          updateFields.joiningYear = yearNum;
+          console.log('[Profile API] Setting joiningYear to:', yearNum);
+        } else {
+          console.log('[Profile API] Invalid joiningYear, skipping update');
+        }
+      }
+    }
+
     // Update profile image
     if (profileImage !== undefined) {
       updateFields.profileImage = profileImage;
@@ -151,12 +175,29 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
     }
 
+    console.log('[Profile API] Update fields to save:', updateFields);
+
     // Update user using findByIdAndUpdate to ensure all fields are saved
-    await User.findByIdAndUpdate(
+    const updatedUser = await User.findByIdAndUpdate(
       userId, 
       { $set: updateFields }, 
       { new: true, runValidators: true }
     );
+
+    console.log('[Profile API] User updated, joiningYear in DB:', updatedUser?.joiningYear);
+
+    // Generate employee ID if joining year was updated and empId doesn't exist or needs update
+    if (updateFields.joiningYear && updatedUser) {
+      // Check if we need to regenerate empId (either doesn't exist or year changed)
+      const needsEmpId = await shouldGenerateEmployeeId(userId, updateFields.joiningYear);
+      console.log('[Profile API] Needs empId regeneration:', needsEmpId);
+      
+      if (needsEmpId) {
+        const empId = await generateEmployeeId(updateFields.joiningYear);
+        await User.findByIdAndUpdate(userId, { $set: { empId } });
+        console.log('[Profile API] Generated and saved new empId:', empId);
+      }
+    }
 
     // Return updated user without password
     // Exclude profileImage from response to prevent slow API responses

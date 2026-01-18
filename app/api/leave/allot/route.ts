@@ -113,8 +113,14 @@ export async function POST(request: NextRequest) {
       leaveData.remainingMinutes = normalizedMinutes;
     } else {
       // For regular leave types, use days
-      endDate.setDate(startDate.getDate() + parseInt(days) - 1);
-      const daysValue = parseInt(days);
+      const daysValue = parseInt(String(days));
+      if (isNaN(daysValue) || daysValue <= 0) {
+        return NextResponse.json(
+          { error: 'Invalid days value' },
+          { status: 400 }
+        );
+      }
+      endDate.setDate(startDate.getDate() + daysValue - 1);
       leaveData.days = daysValue;
       leaveData.remainingDays = daysValue;
     }

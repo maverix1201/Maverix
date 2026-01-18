@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Edit, Trash2, Mail, User, Calendar, Clock, Settings, Search, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Mail, User, Calendar, Clock, Settings, Search, X, Filter } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 import { useSession } from 'next-auth/react';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
@@ -16,7 +16,9 @@ interface Employee {
   name: string;
   email: string;
   role: 'admin' | 'hr' | 'employee';
+  empId?: string;
   designation?: string;
+  joiningYear?: number;
   emailVerified: boolean;
   approved?: boolean;
   profileImage?: string;
@@ -64,6 +66,7 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
   const [maxLateDays, setMaxLateDays] = useState<number>(0);
   const [noClockInRestrictions, setNoClockInRestrictions] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [designationFilter, setDesignationFilter] = useState<string>('');
   const { data: session } = useSession();
   const toast = useToast();
 
@@ -446,20 +449,49 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
     };
   }, [isHROrAdmin]);
 
-  // Filter employees based on search term
-  const filteredEmployees = useMemo(() => {
-    if (!searchTerm.trim()) {
-      return employees;
-    }
-    const searchLower = searchTerm.toLowerCase().trim();
-    return employees.filter((employee) => {
-      const nameMatch = employee.name.toLowerCase().includes(searchLower);
-      const emailMatch = employee.email.toLowerCase().includes(searchLower);
-      const designationMatch = employee.designation?.toLowerCase().includes(searchLower);
-      const roleMatch = employee.role.toLowerCase().includes(searchLower);
-      return nameMatch || emailMatch || designationMatch || roleMatch;
+  // Get unique designations from employees
+  const uniqueDesignations = useMemo(() => {
+    const designations = employees
+      .map((emp) => emp.designation)
+      .filter((des): des is string => Boolean(des && des.trim() !== ''))
+      .sort();
+    return Array.from(new Set(designations));
+  }, [employees]);
+
+  // Get count for each designation
+  const designationCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    employees.forEach((emp) => {
+      if (emp.designation && emp.designation.trim() !== '') {
+        counts[emp.designation] = (counts[emp.designation] || 0) + 1;
+      }
     });
-  }, [employees, searchTerm]);
+    return counts;
+  }, [employees]);
+
+  // Filter employees based on search term and designation filter
+  const filteredEmployees = useMemo(() => {
+    let filtered = employees;
+
+    // Apply designation filter
+    if (designationFilter) {
+      filtered = filtered.filter((employee) => employee.designation === designationFilter);
+    }
+
+    // Apply search term filter
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter((employee) => {
+        const nameMatch = employee.name.toLowerCase().includes(searchLower);
+        const emailMatch = employee.email.toLowerCase().includes(searchLower);
+        const designationMatch = employee.designation?.toLowerCase().includes(searchLower);
+        const roleMatch = employee.role.toLowerCase().includes(searchLower);
+        return nameMatch || emailMatch || designationMatch || roleMatch;
+      });
+    }
+
+    return filtered;
+  }, [employees, searchTerm, designationFilter]);
 
   // Pagination logic
   const paginatedEmployees = useMemo(() => {
@@ -473,6 +505,14 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
   // Handle search with page reset
   const handleSearchChange = (value: string) => {
     setSearchTerm(value);
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
+  };
+
+  // Handle designation filter change
+  const handleDesignationFilterChange = (value: string) => {
+    setDesignationFilter(value);
     if (currentPage !== 1) {
       setCurrentPage(1);
     }
@@ -542,25 +582,73 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
           </div>
           </div>
           {/* Search Box */}
-          <div className="relative mt-3">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Search employees by name, email, designation, or role..."
-              value={searchTerm}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full pl-10 pr-10 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-white"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => handleSearchChange('')}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                title="Clear search"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
+          <div className="mt-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search employees by name, email, designation, or role..."
+                value={searchTerm}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="w-full pl-10 pr-10 py-2 text-sm text-gray-700  rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-gray-100"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => handleSearchChange('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
+
+          {/* Designation Filter Tabs */}
+          {uniqueDesignations.length > 0 && (
+            <div className="mt-3 pb-3 border-b border-gray-200">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-medium text-gray-500 font-secondary">Filter by:</span>
+                <button
+                  onClick={() => handleDesignationFilterChange('')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                    !designationFilter
+                      ? 'bg-primary text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <span>All</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                    !designationFilter
+                      ? 'bg-white/20 text-white'
+                      : 'bg-gray-200 text-gray-600'
+                  }`}>
+                    {employees.length}
+                  </span>
+                </button>
+                {uniqueDesignations.map((designation) => (
+                  <button
+                    key={designation}
+                    onClick={() => handleDesignationFilterChange(designation)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                      designationFilter === designation
+                        ? 'bg-primary text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <span>{designation}</span>
+                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                      designationFilter === designation
+                        ? 'bg-white/20 text-white'
+                        : 'bg-gray-200 text-gray-600'
+                    }`}>
+                      {designationCounts[designation] || 0}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="overflow-x-auto">
@@ -569,6 +657,9 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
               <tr>
                 <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-primary">
                   Name
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-primary">
+                  EMP ID
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-primary">
                   Email
@@ -580,16 +671,16 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
                   Designation
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-primary">
-                  Weekly Off
+                  Week Off
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-primary">
                   Clockin Time
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-primary">
-                  Email Status
+                  Email
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-primary">
-                  Approval Status
+                  Status
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-primary">
                   Actions
@@ -620,6 +711,11 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
                           </span>
                         )}
                       </div>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    <div className="text-xs font-semibold text-gray-900 font-secondary">
+                      {employee.empId || <span className="text-gray-400 italic font-normal">Not set</span>}
                     </div>
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap">

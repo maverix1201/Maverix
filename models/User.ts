@@ -5,10 +5,12 @@ export interface IUser extends Document {
   email: string;
   password: string;
   role: 'admin' | 'hr' | 'employee';
+  empId?: string; // Employee ID (e.g., "2024EMP001")
   designation?: string;
   profileImage?: string;
   mobileNumber?: string;
   dateOfBirth?: Date;
+  joiningYear?: number; // Year when employee joined (e.g., 2024)
   emailVerified: boolean;
   approved: boolean;
   verificationToken?: string;
@@ -47,6 +49,12 @@ const UserSchema: Schema = new Schema(
       enum: ['admin', 'hr', 'employee'],
       default: 'employee',
     },
+    empId: {
+      type: String,
+      unique: true,
+      sparse: true, // Allows multiple null values
+      trim: true,
+    },
     designation: {
       type: String,
       trim: true,
@@ -60,6 +68,11 @@ const UserSchema: Schema = new Schema(
     },
     dateOfBirth: {
       type: Date,
+    },
+    joiningYear: {
+      type: Number,
+      min: 1900,
+      max: 2100,
     },
     emailVerified: {
       type: Boolean,

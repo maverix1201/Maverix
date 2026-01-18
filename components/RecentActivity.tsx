@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, Calendar, LogIn, LogOut, Activity } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 import UserAvatar from './UserAvatar';
 import LoadingDots from './LoadingDots';
 
@@ -127,24 +127,10 @@ export default function RecentActivity() {
     }
   };
 
-  // Format time in short format (seconds, minutes, hours)
+  // Format time as HH:MM (since all activities are from today)
   const formatShortTime = (timestamp: string): string => {
-    const now = new Date();
     const time = new Date(timestamp);
-    const diffInSeconds = Math.floor((now.getTime() - time.getTime()) / 1000);
-    
-    if (diffInSeconds < 60) {
-      return `${diffInSeconds}s ago`;
-    } else if (diffInSeconds < 3600) {
-      const minutes = Math.floor(diffInSeconds / 60);
-      return `${minutes}m ago`;
-    } else if (diffInSeconds < 86400) {
-      const hours = Math.floor(diffInSeconds / 3600);
-      return `${hours}h ago`;
-    } else {
-      const days = Math.floor(diffInSeconds / 86400);
-      return `${days}d ago`;
-    }
+    return format(time, 'HH:mm');
   };
 
   return (
@@ -157,7 +143,7 @@ export default function RecentActivity() {
           <div>
             <h2 className="text-sm font-primary font-bold text-gray-900">Recent Activity</h2>
             <p className="text-[9px] text-gray-500 font-secondary mt-0.5">
-              {activities.length} {activities.length === 1 ? 'activity' : 'activities'} • Live updates
+              {format(new Date(), 'MMMM d, yyyy')} • {activities.length} {activities.length === 1 ? 'activity' : 'activities'}
             </p>
           </div>
         </div>

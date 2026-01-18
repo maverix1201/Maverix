@@ -8,6 +8,7 @@ import Leave from '@/models/Leave';
 import Penalty from '@/models/Penalty';
 import Finance from '@/models/Finance';
 import mongoose from 'mongoose';
+import { generateEmployeeId, shouldGenerateEmployeeId } from '@/utils/generateEmployeeId';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +29,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, role, designation, weeklyOff, clockInTime } = body;
+    const { name, role, designation, joiningYear, weeklyOff, clockInTime } = body;
 
     // Debug logging
     console.log('[Update User] Request body:', JSON.stringify(body));
@@ -55,6 +56,18 @@ export async function PUT(
     }
     if (designation !== undefined) {
       user.designation = designation && designation.trim() !== '' ? designation.trim() : undefined;
+    }
+    
+    // Update joining year if provided
+    if (joiningYear !== undefined) {
+      const yearNum = typeof joiningYear === 'string' ? parseInt(joiningYear, 10) : joiningYear;
+      if (yearNum && !isNaN(yearNum) && yearNum >= 1900 && yearNum <= 2100) {
+        user.joiningYear = yearNum;
+        console.log('[Update User] Setting joiningYear to:', yearNum);
+      } else if (joiningYear === null) {
+        user.joiningYear = undefined;
+        console.log('[Update User] Clearing joiningYear');
+      }
     }
     
     // Always update weeklyOff - it should always be in the request body
@@ -123,9 +136,24 @@ export async function PUT(
     console.log('[Update User] Save result weeklyOff:', saveResult.weeklyOff);
     console.log('[Update User] Save result clockInTime:', saveResult.clockInTime);
     
+    // Generate employee ID if joining year was updated and empId doesn't exist or needs update
+    if (joiningYear !== undefined && user.joiningYear) {
+      console.log('[Update User] Checking if empId needs regeneration for year:', user.joiningYear);
+      const needsEmpId = await shouldGenerateEmployeeId(params.id, user.joiningYear);
+      console.log('[Update User] Needs empId regeneration:', needsEmpId);
+      
+      if (needsEmpId) {
+        const empId = await generateEmployeeId(user.joiningYear);
+        await User.findByIdAndUpdate(params.id, { $set: { empId } });
+        console.log('[Update User] Generated and saved new empId:', empId);
+      } else {
+        console.log('[Update User] EmpId regeneration not needed, keeping existing:', user.empId);
+      }
+    }
+    
     // Reload user to ensure all fields are properly saved
     const updatedUser = await User.findById(params.id)
-      .select('_id name email role designation profileImage mobileNumber emailVerified approved weeklyOff clockInTime createdAt updatedAt')
+      .select('_id name email role empId designation profileImage mobileNumber joiningYear emailVerified approved weeklyOff clockInTime createdAt updatedAt')
       .lean();
 
     console.log('[Update User] Updated user weeklyOff from DB:', updatedUser?.weeklyOff);

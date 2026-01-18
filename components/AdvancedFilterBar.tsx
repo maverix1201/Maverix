@@ -254,7 +254,7 @@ export default function AdvancedFilterBar({
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -8, scale: 0.95 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute z-[9999] w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden"
+                      className="absolute z-[9999] w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-xl max-h-[300px] overflow-y-auto"
                     >
                       {filter.options?.map((option) => (
                         <button

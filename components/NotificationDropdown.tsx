@@ -252,7 +252,7 @@ export default function NotificationDropdown({ onClose }: NotificationDropdownPr
                       }`}>
                       {notification.message}
                     </p>
-                    {notification.type === 'mention' && notification.feedId && (
+                    {notification.type === 'mention' && notification.feedId && notification.feedId.content && (
                       <p className="text-[10px] text-gray-500 mt-0.5 font-secondary italic line-clamp-1 bg-gray-100/50 px-1 py-0.5 rounded">
                         &quot;{notification.feedId.content.substring(0, 35)}...&quot;
                       </p>

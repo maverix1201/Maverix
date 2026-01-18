@@ -16,6 +16,7 @@ interface UserProfile {
   profileImage?: string;
   mobileNumber?: string;
   dateOfBirth?: string;
+  joiningYear?: number;
 }
 
 export default function Profile() {
@@ -27,6 +28,7 @@ export default function Profile() {
     name: '',
     mobileNumber: '',
     dateOfBirth: '',
+    joiningYear: '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
@@ -65,6 +67,7 @@ export default function Profile() {
           name: data.user.name || '',
           mobileNumber: data.user.mobileNumber || '',
           dateOfBirth: formattedDOB,
+          joiningYear: data.user.joiningYear ? String(data.user.joiningYear) : '',
           currentPassword: '',
           newPassword: '',
           confirmPassword: '',
@@ -192,7 +195,11 @@ export default function Profile() {
         name: formData.name,
         mobileNumber: formData.mobileNumber || null,
         dateOfBirth: formData.dateOfBirth && formData.dateOfBirth.trim() !== '' ? formData.dateOfBirth : null,
+        joiningYear: formData.joiningYear && formData.joiningYear.trim() !== '' ? parseInt(formData.joiningYear) : null,
       };
+
+      console.log('[Profile Component] Sending update data:', updateData);
+      console.log('[Profile Component] joiningYear value:', updateData.joiningYear, 'Type:', typeof updateData.joiningYear);
 
       if (formData.currentPassword && formData.newPassword) {
         updateData.currentPassword = formData.currentPassword;
@@ -230,6 +237,7 @@ export default function Profile() {
           name: data.user.name || '',
           mobileNumber: data.user.mobileNumber || '',
           dateOfBirth: formattedDOB,
+          joiningYear: data.user.joiningYear ? String(data.user.joiningYear) : '',
           currentPassword: '',
           newPassword: '',
           confirmPassword: '',
@@ -353,7 +361,7 @@ export default function Profile() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Name */}
-            <div className="md:col-span-2">
+            <div>
               <label className="block text-xs font-primary font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5">
                 <User className="w-3.5 h-3.5 text-blue-500" />
               Full Name *
@@ -365,6 +373,23 @@ export default function Profile() {
               required
                 className="w-full px-3 py-2 text-sm text-gray-700 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-secondary bg-white transition-all hover:border-gray-300"
                 placeholder="Enter your full name"
+            />
+          </div>
+
+          {/* Joining Year */}
+          <div>
+              <label className="text-xs font-primary font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-blue-500" />
+              Joining Year
+            </label>
+            <input
+              type="number"
+              value={formData.joiningYear}
+              onChange={(e) => setFormData({ ...formData, joiningYear: e.target.value })}
+              min="1900"
+              max="2100"
+              placeholder="e.g., 2024"
+                className="w-full px-3 py-2 text-sm text-gray-700 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-secondary bg-white transition-all hover:border-gray-300"
             />
           </div>
 

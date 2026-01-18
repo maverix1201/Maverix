@@ -92,6 +92,18 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
       const url = role === 'admin' || role === 'hr' ? `/api/leave?all=true&t=${timestamp}` : `/api/leave?t=${timestamp}`;
       const res = await fetch(url, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
       const data = await res.json();
+      console.log('[LeaveManagementTabs] Fetched leaves:', data.leaves?.length || 0);
+      if (data.leaves && data.leaves.length > 0) {
+        // Log first few leaves to see structure
+        console.log('[LeaveManagementTabs] Sample leaves:', data.leaves.slice(0, 3).map((l: any) => ({
+          _id: l._id,
+          userId: l.userId?._id || l.userId,
+          leaveType: typeof l.leaveType === 'object' ? l.leaveType?.name : l.leaveType,
+          allottedBy: l.allottedBy ? (typeof l.allottedBy === 'object' ? l.allottedBy?._id || 'object' : l.allottedBy) : null,
+          status: l.status,
+          reason: l.reason?.substring(0, 50)
+        })));
+      }
       setLeaves(data.leaves || []);
     } catch (err) {
       console.error('Error fetching leaves:', err);
@@ -510,8 +522,12 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
   const leaveRequests = useMemo(() => {
     if (!leaves || leaves.length === 0) return [];
 
-    return leaves.filter((leave) => {
-      if (leave.allottedBy) return false; // Exclude allotted leaves
+    const filtered = leaves.filter((leave) => {
+      // Exclude allotted leaves - check if allottedBy exists and is truthy
+      // allottedBy can be: undefined, null, ObjectId string, or populated object {_id, name, ...}
+      if (leave.allottedBy !== undefined && leave.allottedBy !== null) {
+        return false; // It's an allotted leave, exclude from requests
+      }
 
       // Exclude penalty-related leaves (leaves deducted for late clock-in penalties)
       if (leave.reason && /penalty|late.*clock.*in|exceeded.*max.*late/i.test(leave.reason)) {
@@ -538,7 +554,33 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
 
       return true;
     });
+    
+    console.log('[LeaveManagementTabs] Leave Requests filtered:', filtered.length, 'from', leaves.length);
+    return filtered;
   }, [leaves, role, session, employees]);
+
+  // Filter allotted leaves - only leaves that were allotted by admin/HR
+  const allottedLeaves = useMemo(() => {
+    if (!leaves || leaves.length === 0) return [];
+    
+    const filtered = leaves.filter((leave) => {
+      // Only include leaves that have allottedBy and it's truthy
+      // allottedBy can be: undefined, null, ObjectId string, or populated object {_id, name, ...}
+      return leave.allottedBy !== undefined && leave.allottedBy !== null;
+    });
+    
+    console.log('[LeaveManagementTabs] Allotted Leaves filtered:', filtered.length, 'from', leaves.length);
+    if (filtered.length > 0) {
+      console.log('[LeaveManagementTabs] Sample allotted leaves:', filtered.slice(0, 3).map((l: any) => ({
+        _id: l._id,
+        userId: l.userId?._id || l.userId,
+        leaveType: typeof l.leaveType === 'object' ? l.leaveType?.name : l.leaveType,
+        allottedBy: l.allottedBy ? (typeof l.allottedBy === 'object' ? l.allottedBy?._id || 'object' : l.allottedBy) : null,
+      })));
+    }
+    
+    return filtered;
+  }, [leaves]);
 
   return (
     <div>
@@ -649,7 +691,7 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
 
           {/* Allotted Leaves List */}
           <AllottedLeavesList
-            leaves={leaves}
+            leaves={allottedLeaves}
             employees={employees}
             onRefresh={fetchLeaves}
             onEditEmployee={handleEditEmployee}

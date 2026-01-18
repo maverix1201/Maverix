@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Notification from '@/models/Notification';
 import { createNotification } from '@/lib/notificationManager';
+import mongoose from 'mongoose';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,13 +19,23 @@ export async function GET(request: NextRequest) {
 
     const userId = (session.user as any).id;
 
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID not found' }, { status: 401 });
+    }
+
+    // Validate userId format
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      console.error('Invalid userId format:', userId);
+      return NextResponse.json({ error: 'Invalid user ID format' }, { status: 400 });
+    }
+
     await connectDB();
 
     // Get query parameters
     const limit = request.nextUrl.searchParams.get('limit');
     const includeDismissed = request.nextUrl.searchParams.get('includeDismissed') === 'true';
     
-    const query: any = { userId };
+    const query: any = { userId: new mongoose.Types.ObjectId(userId) };
     if (!includeDismissed) {
       query.dismissed = false;
     }
@@ -32,13 +43,45 @@ export async function GET(request: NextRequest) {
     // Always limit to 10 most recent notifications
     const notificationLimit = limit ? Math.min(parseInt(limit), 10) : 10;
 
-    const notifications = await Notification.find(query)
-      .sort({ createdAt: -1 })
-      .limit(notificationLimit)
-      .populate('leaveId', 'startDate endDate days leaveType reason status')
-      .populate('feedId', 'content createdAt')
-      .populate('mentionedBy', 'name email profileImage')
-      .lean();
+    // Build query and populate safely - handle populate errors gracefully
+    let notifications: any[] = [];
+    try {
+      const notificationQuery = Notification.find(query)
+        .sort({ createdAt: -1 })
+        .limit(notificationLimit);
+
+      // Try to populate optional fields
+      try {
+        notifications = await notificationQuery
+          .populate({
+            path: 'leaveId',
+            select: 'startDate endDate days leaveType reason status',
+            strictPopulate: false, // Don't throw error if leaveId doesn't exist
+          })
+          .populate({
+            path: 'feedId',
+            select: 'content createdAt',
+            strictPopulate: false,
+          })
+          .populate({
+            path: 'mentionedBy',
+            select: 'name email profileImage',
+            strictPopulate: false,
+          })
+          .lean();
+      } catch (populateError: any) {
+        // If populate fails, try without populate
+        console.warn('Populate error, retrying without populate:', populateError?.message || populateError);
+        notifications = await Notification.find(query)
+          .sort({ createdAt: -1 })
+          .limit(notificationLimit)
+          .lean();
+      }
+    } catch (queryError: any) {
+      // If query itself fails, return empty array instead of error
+      console.error('Notification query error:', queryError?.message || queryError);
+      notifications = [];
+    }
 
     const response = NextResponse.json({ notifications });
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');

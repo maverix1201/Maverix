@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     // Return all non-admin users (employee + hr) for admin/hr roles
     const users = await User.find({ role: { $ne: 'admin' } })
-      .select('_id name email role designation profileImage mobileNumber emailVerified approved weeklyOff clockInTime createdAt')
+      .select('_id name email role empId designation profileImage mobileNumber joiningYear emailVerified approved weeklyOff clockInTime createdAt')
       .lean();
 
     // Debug logging to verify weeklyOff is being returned

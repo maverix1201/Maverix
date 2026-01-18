@@ -39,33 +39,35 @@ export async function GET() {
 
     await connectDB();
 
-    // Fetch recent clock ins (last 24 hours)
+    // Get current date range (start and end of today)
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    // Fetch clock ins for today
     const recentClockIns = await Attendance.find({
-      clockIn: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      clockIn: { $gte: startOfToday, $lte: endOfToday },
     })
       .populate('userId', 'name email profileImage')
       .sort({ clockIn: -1 })
-      .limit(10)
       .lean();
 
-    // Fetch recent clock outs (last 24 hours)
+    // Fetch clock outs for today
     const recentClockOuts = await Attendance.find({
-      clockOut: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      clockOut: { $gte: startOfToday, $lte: endOfToday },
     })
       .populate('userId', 'name email profileImage')
       .sort({ clockOut: -1 })
-      .limit(10)
       .lean();
 
-    // Fetch recent leave requests (last 7 days)
+    // Fetch leave requests for today
     const recentLeaveRequests = await Leave.find({
-      createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+      createdAt: { $gte: startOfToday, $lte: endOfToday },
       allottedBy: { $exists: false }, // Only leave requests, not allotments
     })
       .populate('userId', 'name email profileImage')
       .populate('leaveType', 'name')
       .sort({ createdAt: -1 })
-      .limit(10)
       .lean();
 
     // Combine and format activities
@@ -111,9 +113,9 @@ export async function GET() {
       });
     });
 
-    // Sort by timestamp (most recent first) and take top 10
+    // Sort by timestamp (most recent first) - show all activities for today
     activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-    const recentActivities = activities.slice(0, 10);
+    const recentActivities = activities;
 
     // Convert timestamps to ISO strings for JSON serialization
     const serializedActivities = recentActivities.map((activity) => ({

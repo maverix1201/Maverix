@@ -14,6 +14,7 @@ interface Employee {
   email: string;
   mobileNumber?: string;
   profileImage?: string;
+  empId?: string;
   role: string;
   dateOfBirth?: string;
   designation?: string;
@@ -124,7 +125,7 @@ export default function EmployeeSearch() {
         <Search className="absolute left-4 top-1/2 z-10 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
         <input
           type="text"
-          placeholder="Search employees..."
+          placeholder="Search employees by name or Emp ID..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           onFocus={() => searchTerm.trim().length >= 2 && setShowResults(true)}

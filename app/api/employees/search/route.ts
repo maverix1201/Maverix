@@ -31,9 +31,10 @@ export async function GET(request: NextRequest) {
         { name: searchRegex },
         { email: searchRegex },
         { mobileNumber: searchRegex },
+        { empId: searchRegex },
       ],
     })
-      .select('_id name email mobileNumber profileImage role dateOfBirth designation')
+      .select('_id name email mobileNumber profileImage role dateOfBirth designation empId')
       .limit(20)
       .lean();
 

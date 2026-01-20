@@ -71,8 +71,8 @@ export default function AttendanceManagement({ initialAttendance, isAdminOrHR = 
 
   // Get initial filter from URL params
   const initialFilter = searchParams?.get('filter') || 'all';
-  const [statusFilter, setStatusFilter] = useState<'all' | 'weekOff' | 'leave' | 'present'>(
-    (initialFilter === 'leave' || initialFilter === 'weekOff' || initialFilter === 'present')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'weekOff' | 'leave' | 'present' | 'late'>(
+    (initialFilter === 'leave' || initialFilter === 'weekOff' || initialFilter === 'present' || initialFilter === 'late')
       ? initialFilter
       : 'all'
   );
@@ -80,7 +80,7 @@ export default function AttendanceManagement({ initialAttendance, isAdminOrHR = 
   // Update filter when URL params change
   useEffect(() => {
     const filter = searchParams?.get('filter') || 'all';
-    if (filter === 'leave' || filter === 'weekOff' || filter === 'present') {
+    if (filter === 'leave' || filter === 'weekOff' || filter === 'present' || filter === 'late') {
       setStatusFilter(filter);
     } else {
       setStatusFilter('all');
@@ -478,10 +478,19 @@ export default function AttendanceManagement({ initialAttendance, isAdminOrHR = 
             const isWeeklyOff = emp.weeklyOff?.includes(selectedDayName) || false;
             const hasAttendance = !!attendanceMap.get(emp._id);
             const isPresent = hasAttendance && !isOnLeave && !isWeeklyOff;
+            const isLate =
+              hasAttendance &&
+              !isOnLeave &&
+              !isWeeklyOff &&
+              (() => {
+                const att = attendanceMap.get(emp._id);
+                return att?.clockIn ? isLateClockIn(att.clockIn, emp.clockInTime) : false;
+              })();
 
             if (statusFilter === 'weekOff' && !isWeeklyOff) return false;
             if (statusFilter === 'leave' && !isOnLeave) return false;
             if (statusFilter === 'present' && !isPresent) return false;
+            if (statusFilter === 'late' && !isLate) return false;
           }
 
           return true;
@@ -572,6 +581,15 @@ export default function AttendanceManagement({ initialAttendance, isAdminOrHR = 
                       }`}
                   >
                     Present
+                  </button>
+                  <button
+                    onClick={() => setStatusFilter('late')}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors font-secondary ${statusFilter === 'late'
+                      ? 'bg-orange-100 text-orange-800 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                  >
+                    Late
                   </button>
                   <button
                     onClick={() => setStatusFilter('leave')}

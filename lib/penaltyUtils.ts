@@ -8,6 +8,38 @@ import LeaveType from '@/models/LeaveType';
 import mongoose from 'mongoose';
 
 /**
+ * Reusable helpers for penalty leave deduction.
+ * Keep these centralized so the penalty rules stay consistent everywhere.
+ */
+export function getPenaltyLeaveDeductionDays(): number {
+  // Current rule: deduct 0.5 day (casual leave) when max late days is exceeded.
+  return 0.5;
+}
+
+export async function getPenaltyDeductionLeaveType(options?: {
+  createIfMissing?: boolean;
+}): Promise<any | null> {
+  const createIfMissing = Boolean(options?.createIfMissing);
+
+  // Current rule: deduct from "Casual Leave" (case-insensitive exact match).
+  let casualLeaveType = await LeaveType.findOne({
+    name: { $regex: /^casual\s*leave$/i },
+  });
+
+  if (!casualLeaveType && createIfMissing) {
+    casualLeaveType = new LeaveType({
+      name: 'Casual Leave',
+      description: 'Casual leave for employees',
+      isActive: true,
+    });
+    await casualLeaveType.save();
+    console.log('[Penalty Utils] Created Casual Leave type');
+  }
+
+  return casualLeaveType;
+}
+
+/**
  * Checks all conditions and creates a penalty if late clock-ins exceed max days
  * @param userId - User ID
  * @param clockInTime - Clock-in time as Date object
@@ -168,9 +200,7 @@ export async function checkAndCreatePenalty(
 
     // Also check for existing leave deduction for today (double-check to prevent race conditions)
     try {
-      const casualLeaveType = await LeaveType.findOne({ 
-        name: { $regex: /^casual\s*leave$/i } 
-      });
+      const casualLeaveType = await getPenaltyDeductionLeaveType({ createIfMissing: false });
 
       if (casualLeaveType) {
         const existingDeduction = await Leave.findOne({
@@ -203,7 +233,7 @@ export async function checkAndCreatePenalty(
       timeLimit: timeLimit,
       maxLateDays: maxLateDays,
       lateArrivalCount: lateArrivalCount,
-      penaltyAmount: 0.5, // 0.5 casual leave deduction
+      penaltyAmount: getPenaltyLeaveDeductionDays(),
       reason: `Late clock-in (${clockInTimeStr}) after time limit (${timeLimit}) - Exceeded max late days (${lateArrivalCount}/${maxLateDays})`,
     });
 
@@ -212,19 +242,10 @@ export async function checkAndCreatePenalty(
 
     // Deduct 0.5 casual leave when penalty is created
     try {
-      // Find or create "Casual Leave" leave type
-      let casualLeaveType = await LeaveType.findOne({ 
-        name: { $regex: /^casual\s*leave$/i } 
-      });
-
+      // Find or create the penalty leave type
+      const casualLeaveType = await getPenaltyDeductionLeaveType({ createIfMissing: true });
       if (!casualLeaveType) {
-        casualLeaveType = new LeaveType({
-          name: 'Casual Leave',
-          description: 'Casual leave for employees',
-          isActive: true,
-        });
-        await casualLeaveType.save();
-        console.log('[Penalty Utils] Created Casual Leave type');
+        throw new Error('Penalty leave type not found and could not be created');
       }
 
       // Check if leave has already been deducted for today (double-check to prevent duplicates)
@@ -277,7 +298,7 @@ export async function checkAndCreatePenalty(
       const leaveDeduction = new Leave({
         userId: new mongoose.Types.ObjectId(userId),
         leaveType: casualLeaveType._id,
-        days: 0.5,
+        days: getPenaltyLeaveDeductionDays(),
         startDate: todayDate,
         endDate: todayDate,
         reason: `Penalty: Late clock-in exceeded max days (${lateArrivalCount}/${maxLateDays})`,
@@ -287,7 +308,9 @@ export async function checkAndCreatePenalty(
       });
 
       await leaveDeduction.save();
-      console.log(`[Penalty Utils] Deducted 0.5 casual leave for penalty - User ${userId}`);
+      console.log(
+        `[Penalty Utils] Deducted ${getPenaltyLeaveDeductionDays()} casual leave for penalty - User ${userId}`
+      );
 
       // Update the allotted leave's remainingDays
       if (allottedLeave) {

@@ -5,6 +5,7 @@ import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import { sendVerificationEmail } from '@/utils/sendEmail';
 import crypto from 'crypto';
+import { ensureEmpIdsByJoiningYear } from '@/lib/ensureEmpIdsByJoiningYear';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,10 +24,25 @@ export async function GET(request: NextRequest) {
 
     await connectDB();
 
+    // Auto-normalize existing employee IDs based on "joiningYear added time"
+    // so Admin/HR always see consistent IDs in the panel.
+    await ensureEmpIdsByJoiningYear();
+
     // Return all non-admin users (employee + hr) for admin/hr roles
     const users = await User.find({ role: { $ne: 'admin' } })
-      .select('_id name email role empId designation profileImage mobileNumber joiningYear emailVerified approved weeklyOff clockInTime createdAt')
+      .select('_id name email role empId designation profileImage mobileNumber joiningYear joiningYearUpdatedAt emailVerified approved weeklyOff clockInTime createdAt')
       .lean();
+
+    // Safety: never expose empId if joiningYear is missing/invalid.
+    // (Prevents UI from showing empId after joiningYear was cleared, even if legacy data exists.)
+    const sanitizedUsers = (users as any[]).map((u) => {
+      const jy = u.joiningYear;
+      const validYear = typeof jy === 'number' && jy >= 1900 && jy <= 2100;
+      if (!validYear) {
+        return { ...u, empId: undefined, joiningYearUpdatedAt: undefined };
+      }
+      return u;
+    });
 
     // Debug logging to verify weeklyOff is being returned
     console.log('[Get Users] Users with weeklyOff:', users.map((u: any) => ({ 
@@ -37,7 +53,7 @@ export async function GET(request: NextRequest) {
       weeklyOffIsArray: Array.isArray(u.weeklyOff)
     })));
 
-    const response = NextResponse.json({ users });
+    const response = NextResponse.json({ users: sanitizedUsers });
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
     response.headers.set('Pragma', 'no-cache');
     response.headers.set('Expires', '0');

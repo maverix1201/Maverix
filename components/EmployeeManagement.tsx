@@ -418,6 +418,9 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
 
   useEffect(() => {
     // Fetch immediately
+    // - employee list (includes empId/joiningYear changes)
+    // - employees on leave (status chips)
+    fetchEmployees();
     fetchEmployeesOnLeave();
     fetchDefaultTimeLimit();
     fetchMaxLateDays();
@@ -427,6 +430,7 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
 
     // Refresh when window comes into focus
     const handleFocus = () => {
+      fetchEmployees();
       fetchEmployeesOnLeave();
     };
     window.addEventListener('focus', handleFocus);
@@ -481,12 +485,19 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
     // Apply search term filter
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase().trim();
+      const normalize = (v?: string | null) =>
+        (v || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const searchNorm = normalize(searchLower);
+
       filtered = filtered.filter((employee) => {
         const nameMatch = employee.name.toLowerCase().includes(searchLower);
         const emailMatch = employee.email.toLowerCase().includes(searchLower);
         const designationMatch = employee.designation?.toLowerCase().includes(searchLower);
         const roleMatch = employee.role.toLowerCase().includes(searchLower);
-        return nameMatch || emailMatch || designationMatch || roleMatch;
+        const empIdMatch = searchNorm
+          ? normalize(employee.empId).includes(searchNorm)
+          : false;
+        return nameMatch || emailMatch || designationMatch || roleMatch || empIdMatch;
       });
     }
 
@@ -587,7 +598,7 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
-                placeholder="Search employees by name, email, designation, or role..."
+                placeholder="Search employees by name, Emp ID, email, designation, or role..."
                 value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 className="w-full pl-10 pr-10 py-2 text-sm text-gray-700  rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-secondary bg-gray-100"

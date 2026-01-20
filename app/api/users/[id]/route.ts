@@ -8,7 +8,7 @@ import Leave from '@/models/Leave';
 import Penalty from '@/models/Penalty';
 import Finance from '@/models/Finance';
 import mongoose from 'mongoose';
-import { generateEmployeeId, shouldGenerateEmployeeId } from '@/utils/generateEmployeeId';
+import { generateEmployeeId, extractEmployeeIdSequence } from '@/utils/generateEmployeeId';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +44,8 @@ export async function PUT(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    const previousJoiningYear = user.joiningYear ?? null;
+
     // Prevent HR from changing user roles
     if (userRole === 'hr' && role && role !== user.role) {
       return NextResponse.json({ error: 'HR cannot change user roles' }, { status: 403 });
@@ -60,13 +62,29 @@ export async function PUT(
     
     // Update joining year if provided
     if (joiningYear !== undefined) {
-      const yearNum = typeof joiningYear === 'string' ? parseInt(joiningYear, 10) : joiningYear;
-      if (yearNum && !isNaN(yearNum) && yearNum >= 1900 && yearNum <= 2100) {
-        user.joiningYear = yearNum;
-        console.log('[Update User] Setting joiningYear to:', yearNum);
-      } else if (joiningYear === null) {
+      const isClearing =
+        joiningYear === null ||
+        joiningYear === '' ||
+        (typeof joiningYear === 'string' && joiningYear.trim() === '');
+
+      if (isClearing) {
         user.joiningYear = undefined;
-        console.log('[Update User] Clearing joiningYear');
+        (user as any).joiningYearUpdatedAt = undefined;
+        user.markModified('joiningYearUpdatedAt');
+        // If joiningYear is removed, empId must be removed too.
+        user.empId = undefined;
+        user.markModified('empId');
+        console.log('[Update User] Clearing joiningYear (and empId)');
+      } else {
+        const yearNum = typeof joiningYear === 'string' ? parseInt(joiningYear, 10) : joiningYear;
+        if (yearNum && !isNaN(yearNum) && yearNum >= 1900 && yearNum <= 2100) {
+          user.joiningYear = yearNum;
+          if (!previousJoiningYear) {
+            (user as any).joiningYearUpdatedAt = new Date();
+            user.markModified('joiningYearUpdatedAt');
+          }
+          console.log('[Update User] Setting joiningYear to:', yearNum);
+        }
       }
     }
     
@@ -136,24 +154,29 @@ export async function PUT(
     console.log('[Update User] Save result weeklyOff:', saveResult.weeklyOff);
     console.log('[Update User] Save result clockInTime:', saveResult.clockInTime);
     
-    // Generate employee ID if joining year was updated and empId doesn't exist or needs update
+    // Employee ID rule:
+    // - When joiningYear is set, empId should be YYYYEMP-### using a GLOBAL sequence.
+    // - If joiningYear changes later, update only the year prefix and keep the same ### sequence.
     if (joiningYear !== undefined && user.joiningYear) {
-      console.log('[Update User] Checking if empId needs regeneration for year:', user.joiningYear);
-      const needsEmpId = await shouldGenerateEmployeeId(params.id, user.joiningYear);
-      console.log('[Update User] Needs empId regeneration:', needsEmpId);
-      
-      if (needsEmpId) {
+      const currentEmpId = user.empId;
+      if (!currentEmpId) {
         const empId = await generateEmployeeId(user.joiningYear);
         await User.findByIdAndUpdate(params.id, { $set: { empId } });
         console.log('[Update User] Generated and saved new empId:', empId);
       } else {
-        console.log('[Update User] EmpId regeneration not needed, keeping existing:', user.empId);
+        const seq = extractEmployeeIdSequence(currentEmpId);
+        const expectedPrefix = `${user.joiningYear}EMP-`;
+        if (seq !== null && !currentEmpId.startsWith(expectedPrefix)) {
+          const newEmpId = `${user.joiningYear}EMP-${String(seq).padStart(3, '0')}`;
+          await User.findByIdAndUpdate(params.id, { $set: { empId: newEmpId } });
+          console.log('[Update User] Updated empId year prefix:', newEmpId);
+        }
       }
     }
     
     // Reload user to ensure all fields are properly saved
     const updatedUser = await User.findById(params.id)
-      .select('_id name email role empId designation profileImage mobileNumber joiningYear emailVerified approved weeklyOff clockInTime createdAt updatedAt')
+      .select('_id name email role empId designation profileImage mobileNumber joiningYear joiningYearUpdatedAt emailVerified approved weeklyOff clockInTime createdAt updatedAt')
       .lean();
 
     console.log('[Update User] Updated user weeklyOff from DB:', updatedUser?.weeklyOff);

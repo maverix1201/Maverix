@@ -5,12 +5,13 @@ export interface IUser extends Document {
   email: string;
   password: string;
   role: 'admin' | 'hr' | 'employee';
-  empId?: string; // Employee ID (e.g., "2024EMP001")
+  empId?: string; // Employee ID (e.g., "2024EMP-001")
   designation?: string;
   profileImage?: string;
   mobileNumber?: string;
   dateOfBirth?: Date;
   joiningYear?: number; // Year when employee joined (e.g., 2024)
+  joiningYearUpdatedAt?: Date; // When joiningYear was first set (used for global empId ordering)
   emailVerified: boolean;
   approved: boolean;
   verificationToken?: string;
@@ -73,6 +74,9 @@ const UserSchema: Schema = new Schema(
       type: Number,
       min: 1900,
       max: 2100,
+    },
+    joiningYearUpdatedAt: {
+      type: Date,
     },
     emailVerified: {
       type: Boolean,

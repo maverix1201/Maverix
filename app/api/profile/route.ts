@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
-import { generateEmployeeId, shouldGenerateEmployeeId } from '@/utils/generateEmployeeId';
+import { generateEmployeeId, extractEmployeeIdSequence } from '@/utils/generateEmployeeId';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,6 +82,10 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    const previousJoiningYear = user.joiningYear ?? null;
+    const isClearingJoiningYear =
+      joiningYear === null || joiningYear === '' || (typeof joiningYear === 'string' && joiningYear.trim() === '');
+
     // Build update object
     const updateFields: any = {};
 
@@ -123,8 +127,8 @@ export async function PUT(request: NextRequest) {
       console.log('[Profile API] joiningYear received:', joiningYear, 'Type:', typeof joiningYear);
       
       // Handle null or empty values
-      if (joiningYear === null || joiningYear === '') {
-        updateFields.joiningYear = null;
+      if (isClearingJoiningYear) {
+        // We'll unset in the DB update operation below; keep updateFields minimal.
         console.log('[Profile API] Setting joiningYear to null');
       } else {
         // Convert to number if it's a string
@@ -133,6 +137,10 @@ export async function PUT(request: NextRequest) {
         
         if (!isNaN(yearNum) && yearNum >= 1900 && yearNum <= 2100) {
           updateFields.joiningYear = yearNum;
+          // Track the time joiningYear was first set (for global empId ordering)
+          if (!previousJoiningYear) {
+            updateFields.joiningYearUpdatedAt = new Date();
+          }
           console.log('[Profile API] Setting joiningYear to:', yearNum);
         } else {
           console.log('[Profile API] Invalid joiningYear, skipping update');
@@ -170,32 +178,46 @@ export async function PUT(request: NextRequest) {
       updateFields.password = await bcrypt.hash(newPassword, 10);
     }
 
-    // Ensure we have at least one field to update
-    if (Object.keys(updateFields).length === 0) {
+    // Ensure we have at least one field to update.
+    // Note: clearing joiningYear sends `joiningYear` but results in only $unset operations.
+    if (Object.keys(updateFields).length === 0 && joiningYear === undefined) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
     }
 
     console.log('[Profile API] Update fields to save:', updateFields);
 
     // Update user using findByIdAndUpdate to ensure all fields are saved
-    const updatedUser = await User.findByIdAndUpdate(
-      userId, 
-      { $set: updateFields }, 
-      { new: true, runValidators: true }
-    );
+    const updateOp: any = { $set: updateFields };
+    if (isClearingJoiningYear) {
+      updateOp.$unset = { joiningYear: '', joiningYearUpdatedAt: '', empId: '' };
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(userId, updateOp, {
+      new: true,
+      runValidators: true,
+    });
 
     console.log('[Profile API] User updated, joiningYear in DB:', updatedUser?.joiningYear);
 
-    // Generate employee ID if joining year was updated and empId doesn't exist or needs update
-    if (updateFields.joiningYear && updatedUser) {
-      // Check if we need to regenerate empId (either doesn't exist or year changed)
-      const needsEmpId = await shouldGenerateEmployeeId(userId, updateFields.joiningYear);
-      console.log('[Profile API] Needs empId regeneration:', needsEmpId);
-      
-      if (needsEmpId) {
-        const empId = await generateEmployeeId(updateFields.joiningYear);
+    // If joiningYear was cleared, it was unset together with empId in the update operation above.
+
+    // Employee ID rule:
+    // - When joiningYear is set, empId should be YYYYEMP-### using a GLOBAL sequence.
+    // - If joiningYear changes later, update only the year prefix and keep the same ### sequence.
+    if (updatedUser?.joiningYear) {
+      const currentEmpId = updatedUser.empId;
+      if (!currentEmpId) {
+        const empId = await generateEmployeeId(updatedUser.joiningYear);
         await User.findByIdAndUpdate(userId, { $set: { empId } });
         console.log('[Profile API] Generated and saved new empId:', empId);
+      } else {
+        const seq = extractEmployeeIdSequence(currentEmpId);
+        const expectedPrefix = `${updatedUser.joiningYear}EMP-`;
+        if (seq !== null && !currentEmpId.startsWith(expectedPrefix)) {
+          const newEmpId = `${updatedUser.joiningYear}EMP-${String(seq).padStart(3, '0')}`;
+          await User.findByIdAndUpdate(userId, { $set: { empId: newEmpId } });
+          console.log('[Profile API] Updated empId year prefix:', newEmpId);
+        }
       }
     }
 

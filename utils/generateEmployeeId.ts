@@ -1,57 +1,36 @@
-import User from '@/models/User';
+import Counter from '@/models/Counter';
 
 /**
- * Generates a unique employee ID based on joining year
- * Format: [JoiningYear]EMP[001]
- * Example: 2024EMP001, 2024EMP002, etc.
- * 
- * @param joiningYear - The year the employee joined
- * @returns Promise<string> - The generated employee ID
+ * Global employee ID generator.
+ *
+ * - Uses a single global sequence (NOT year-wise).
+ * - Format when joiningYear is present: YYYYEMP-001, YYYYEMP-002, ...
+ * - The numeric sequence is global across all years.
  */
 export async function generateEmployeeId(joiningYear: number): Promise<string> {
-  try {
-    // Find all employees with the same joining year who have empId
-    const employeesInYear = await User.find({
-      joiningYear: joiningYear,
-      empId: { $exists: true, $ne: null }
-    }).select('empId').sort({ empId: 1 }).lean();
-
-    // Extract sequence numbers from existing employee IDs
-    const sequenceNumbers: number[] = [];
-    const prefix = `${joiningYear}EMP`;
-    
-    employeesInYear.forEach((emp: any) => {
-      if (emp.empId && emp.empId.startsWith(prefix)) {
-        // Handle both old format (2023EMP001) and new format (2023EMP-001)
-        const seqStr = emp.empId.substring(prefix.length).replace('-', '');
-        const seqNum = parseInt(seqStr, 10);
-        if (!isNaN(seqNum)) {
-          sequenceNumbers.push(seqNum);
-        }
-      }
-    });
-
-    // Find the next available sequence number
-    let nextSequence = 1;
-    if (sequenceNumbers.length > 0) {
-      // Sort and find the highest number
-      sequenceNumbers.sort((a, b) => a - b);
-      nextSequence = sequenceNumbers[sequenceNumbers.length - 1] + 1;
-    }
-
-    // Format the sequence number with leading zeros (3 digits)
-    const sequenceStr = nextSequence.toString().padStart(3, '0');
-    
-    // Generate the employee ID with hyphen (e.g., 2023EMP-001)
-    const empId = `${prefix}-${sequenceStr}`;
-    
-    console.log(`[generateEmployeeId] Generated ID: ${empId} for year ${joiningYear}`);
-    
-    return empId;
-  } catch (error) {
-    console.error('[generateEmployeeId] Error generating employee ID:', error);
-    throw error;
+  if (!joiningYear || Number.isNaN(joiningYear)) {
+    throw new Error('joiningYear is required to generate employee ID');
   }
+
+  const counter = await Counter.findByIdAndUpdate(
+    'employeeId',
+    { $inc: { seq: 1 } },
+    { upsert: true, new: true }
+  ).lean();
+
+  const seq = counter?.seq ?? 1;
+  const padded = String(seq).padStart(3, '0');
+  const empId = `${joiningYear}EMP-${padded}`;
+
+  return empId;
+}
+
+export function extractEmployeeIdSequence(empId?: string | null): number | null {
+  if (!empId || typeof empId !== 'string') return null;
+  const match = empId.match(/(\d+)\s*$/);
+  if (!match) return null;
+  const n = parseInt(match[1], 10);
+  return Number.isFinite(n) ? n : null;
 }
 
 /**
@@ -67,12 +46,12 @@ export async function shouldGenerateEmployeeId(userId: string, joiningYear: numb
   }
 
   try {
-    const user = await User.findById(userId).select('empId joiningYear').lean();
+    const User = (await import('@/models/User')).default;
+    const user = await User.findById(userId).select('empId').lean();
     
     console.log('[shouldGenerateEmployeeId] User data:', {
       userId,
       currentEmpId: user?.empId,
-      currentJoiningYear: user?.joiningYear,
       newJoiningYear: joiningYear
     });
     
@@ -82,22 +61,9 @@ export async function shouldGenerateEmployeeId(userId: string, joiningYear: numb
       return true;
     }
 
-    // Regenerate if joining year changed and empId doesn't match the new year
-    const currentPrefix = `${joiningYear}EMP`;
-    const empIdMatches = user.empId.startsWith(currentPrefix);
-    
-    console.log('[shouldGenerateEmployeeId] Checking prefix:', {
-      expectedPrefix: currentPrefix,
-      currentEmpId: user.empId,
-      matches: empIdMatches
-    });
-    
-    if (user.empId && !empIdMatches) {
-      console.log('[shouldGenerateEmployeeId] EmpId prefix does not match new year, will regenerate');
-      return true;
-    }
-
-    console.log('[shouldGenerateEmployeeId] EmpId is valid for current year, no regeneration needed');
+    // If empId exists, do not generate a new global sequence here.
+    // (Prefix updates for year changes should keep the existing sequence number.)
+    console.log('[shouldGenerateEmployeeId] EmpId exists, no generation needed');
     return false;
   } catch (error) {
     console.error('[shouldGenerateEmployeeId] Error checking if empId should be generated:', error);

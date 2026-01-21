@@ -9,12 +9,15 @@ import { useEffect, useState } from 'react';
 import UserAvatar from '@/components/UserAvatar';
 import { formatDistanceToNow } from 'date-fns';
 import LoadingDots from '@/components/LoadingDots';
-import RecentActivity from '@/components/RecentActivity';
-import AnnouncementManagement from '@/components/AnnouncementManagement';
-import PendingEmployees from '@/components/PendingEmployees';
-import NotClockedInModal from '@/components/NotClockedInModal';
-import EmployeeSearch from '@/components/EmployeeSearch';
-import UpcomingBirthdays from '@/components/UpcomingBirthdays';
+import dynamic from 'next/dynamic';
+
+// Heavy dashboard widgets are lazy-loaded to speed up initial page load.
+const RecentActivity = dynamic(() => import('@/components/RecentActivity'), { ssr: false });
+const AnnouncementManagement = dynamic(() => import('@/components/AnnouncementManagement'), { ssr: false });
+const PendingEmployees = dynamic(() => import('@/components/PendingEmployees'), { ssr: false });
+const NotClockedInModal = dynamic(() => import('@/components/NotClockedInModal'), { ssr: false });
+const EmployeeSearch = dynamic(() => import('@/components/EmployeeSearch'), { ssr: false });
+const UpcomingBirthdays = dynamic(() => import('@/components/UpcomingBirthdays'), { ssr: false });
 
 interface RecentTeam {
   _id: string;
@@ -106,28 +109,30 @@ export default function AdminDashboard() {
 
     // Only fetch data if user is authenticated and is admin
     if (status === 'authenticated' && session && (session.user as any)?.role === 'admin') {
-      fetchStats();
-      fetchRecentTeams();
+      fetchStats(true);
+      fetchRecentTeams(true);
       fetchProfileImage();
 
-      // Auto-refresh teams every 5 seconds
+      // Auto-refresh teams (light refresh) - keep this modest to reduce load
       const interval = setInterval(() => {
-        fetchRecentTeams();
-      }, 5000);
+        if (document.visibilityState === 'visible') {
+          fetchRecentTeams(false);
+        }
+      }, 30000);
 
       // Refetch when page becomes visible (user navigates back)
       const handleVisibilityChange = () => {
         if (document.visibilityState === 'visible') {
-          fetchStats();
-          fetchRecentTeams();
+          fetchStats(false);
+          fetchRecentTeams(false);
         }
       };
       document.addEventListener('visibilitychange', handleVisibilityChange);
 
       // Refetch when window gains focus
       const handleFocus = () => {
-        fetchStats();
-        fetchRecentTeams();
+        fetchStats(false);
+        fetchRecentTeams(false);
       };
       window.addEventListener('focus', handleFocus);
 
@@ -139,9 +144,9 @@ export default function AdminDashboard() {
     }
   }, [session, status]);
 
-  const fetchStats = async () => {
+  const fetchStats = async (showSpinner: boolean) => {
     try {
-      setLoading(true);
+      if (showSpinner) setLoading(true);
       const res = await fetch(`/api/admin/stats?t=${Date.now()}`, {
         cache: 'no-store',
         headers: {
@@ -161,13 +166,13 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error('Error fetching stats:', err);
     } finally {
-      setLoading(false);
+      if (showSpinner) setLoading(false);
     }
   };
 
-  const fetchRecentTeams = async () => {
+  const fetchRecentTeams = async (showSpinner: boolean) => {
     try {
-      setTeamsLoading(true);
+      if (showSpinner) setTeamsLoading(true);
       const res = await fetch(`/api/teams/recent?t=${Date.now()}`, {
         cache: 'no-store',
         headers: {
@@ -181,7 +186,7 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error('Error fetching recent teams:', err);
     } finally {
-      setTeamsLoading(false);
+      if (showSpinner) setTeamsLoading(false);
     }
   };
 

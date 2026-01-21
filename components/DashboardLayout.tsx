@@ -3,20 +3,16 @@
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { usePathname, useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import Image from 'next/image';
+import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import {
   IconLayoutDashboard,
   IconUsers,
   IconCalendar,
   IconCurrencyDollar,
   IconClock,
-  IconFileText,
   IconLogout,
-  IconMenu2,
-  IconX,
   IconUser,
-  IconUserCog,
   IconUserCircle,
   IconMessage,
   IconCalendarEvent,
@@ -24,9 +20,13 @@ import {
 import Logo from './Logo';
 import UserAvatar from './UserAvatar';
 import LoadingDots from './LoadingDots';
-import { User } from 'lucide-react';
 import LogoWhite from './LogoWhite';
-import ProfileCompletionBanner from './ProfileCompletionBanner';
+
+// Loaded on-demand to keep the dashboard layout lean
+const ProfileCompletionBanner = dynamic(() => import('./ProfileCompletionBanner'), {
+  ssr: false,
+  loading: () => null,
+});
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -202,19 +202,18 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                 const Icon = item.icon;
                 const isActive = pathname === item.href;
                 return (
-                  <motion.a
+                  <Link
                     key={item.name}
                     href={item.href}
-                    whileHover={{ x: 2 }}
                     className={`flex items-center gap-2.5 px-3 py-2 transition-colors text-sm rounded-xl ${isActive
                       ? 'bg-[#00009f] text-white font-medium'
-                      : 'text-gray-400 hover:bg-[#00009f]'
+                      : 'text-gray-400 hover:bg-[#00009f] hover:text-gray-100'
                       }`}
                     onClick={() => setSidebarOpen(false)}
                   >
                     <Icon className="w-4 h-4" />
                     <span className="font-secondary">{item.name}</span>
-                  </motion.a>
+                  </Link>
                 );
               })}
 
@@ -229,60 +228,56 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                   const Icon = item.icon;
                   const isActive = pathname === item.href;
                   return (
-                    <motion.a
+                    <Link
                       key={item.name}
                       href={item.href}
-                      whileHover={{ x: 2 }}
                       className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${isActive
                         ? 'bg-[#00009f] text-white font-medium'
-                        : 'text-gray-400 hover:bg-[#00009f]'
+                        : 'text-gray-400 hover:bg-[#00009f] hover:text-gray-100'
                         }`}
                       onClick={() => setSidebarOpen(false)}
                     >
                       <Icon className="w-4 h-4" />
                       <span className="font-secondary">{item.name}</span>
-                    </motion.a>
+                    </Link>
                   );
                 })}
               {/* Add Leave Request and Attendance for HR */}
               {role === 'hr' && (
                 <>
-                  <motion.a
+                  <Link
                     href="/hr/leave-request"
-                    whileHover={{ x: 2 }}
                     className={`flex items-center mt-1 gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${pathname === '/hr/leave-request'
                       ? 'bg-[#00009f] text-white font-medium'
-                      : 'text-gray-400 hover:bg-[#00009f]'
+                      : 'text-gray-400 hover:bg-[#00009f] hover:text-gray-100'
                       }`}
                     onClick={() => setSidebarOpen(false)}
                   >
                     <IconCalendarEvent className="w-4 h-4" />
                     <span className="font-secondary">Leave Request</span>
-                  </motion.a>
-                  <motion.a
+                  </Link>
+                  <Link
                     href="/hr/my-attendance"
-                    whileHover={{ x: 2 }}
                     className={`flex items-center mt-1 gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${pathname === '/hr/my-attendance'
                       ? 'bg-[#00009f] text-white font-medium'
-                      : 'text-gray-400 hover:bg-[#00009f]'
+                      : 'text-gray-400 hover:bg-[#00009f] hover:text-gray-100'
                       }`}
                     onClick={() => setSidebarOpen(false)}
                   >
                     <IconClock className="w-4 h-4" />
                     <span className="font-secondary">Attendance</span>
-                  </motion.a>
-                  <motion.a
+                  </Link>
+                  <Link
                     href="/hr/salary"
-                    whileHover={{ x: 2 }}
                     className={`flex items-center mt-1 gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${pathname === '/hr/salary'
                       ? 'bg-[#00009f] text-white font-medium'
-                      : 'text-gray-400 hover:bg-[#00009f]'
+                      : 'text-gray-400 hover:bg-[#00009f] hover:text-gray-100'
                       }`}
                     onClick={() => setSidebarOpen(false)}
                   >
                     <IconCurrencyDollar className="w-4 h-4" />
                     <span className="font-secondary">Salary Slip</span>
-                  </motion.a>
+                  </Link>
                 </>
               )}
             </div>
@@ -325,24 +320,22 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                     const Icon = item.icon;
                     const isActive = pathname === item.href;
                     return (
-                      <motion.a
+                      <Link
                         key={item.name}
                         href={item.href}
-                        whileTap={{ scale: 0.95 }}
                         className={`flex items-center justify-center px-4 py-3 rounded-xl transition-all ${isActive
                           ? 'bg-primary/40 text-white'
                           : 'text-gray-400 hover:bg-primary/10'
                           }`}
                       >
                         <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-gray-400'}`} />
-                      </motion.a>
+                      </Link>
                     );
                   })}
 
                 {/* User Profile Picture */}
-                <motion.a
+                <Link
                   href={`/${role}/profile`}
-                  whileTap={{ scale: 0.95 }}
                   className={`flex items-center justify-center px-3 py-2 rounded-xl transition-all ${pathname === `/${role}/profile`
                     ? 'bg-primary/10'
                     : ''
@@ -353,16 +346,15 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                     image={userImage}
                     size="sm"
                   />
-                </motion.a>
+                </Link>
 
                 {/* Logout Button */}
-                <motion.button
+                <button
                   onClick={handleLogout}
-                  whileTap={{ scale: 0.95 }}
                   className="flex items-center justify-center px-4 py-3 rounded-xl transition-all text-red-600 hover:bg-red-50/50"
                 >
                   <IconLogout className="w-5 h-5" />
-                </motion.button>
+                </button>
               </div>
             </div>
           </div>

@@ -78,8 +78,12 @@ export default function EmployeeTeamInfo() {
     // Fetch immediately
     fetchEmployeesOnLeave();
 
-    // Refresh every 5 seconds to catch status changes quickly
-    const interval = setInterval(fetchEmployeesOnLeave, 5000);
+    // Refresh periodically (use events for instant updates)
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchEmployeesOnLeave();
+      }
+    }, 30000);
 
     // Refresh when window comes into focus
     const handleFocus = () => {

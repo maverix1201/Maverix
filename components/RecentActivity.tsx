@@ -39,24 +39,26 @@ export default function RecentActivity() {
   }, []);
 
   useEffect(() => {
-    fetchActivities();
+    fetchActivities(true);
 
-    // Auto-refresh activities every 5 seconds
+    // Auto-refresh activities (light refresh) - keep this modest
     const interval = setInterval(() => {
-      fetchActivities();
-    }, 5000);
+      if (document.visibilityState === 'visible') {
+        fetchActivities(false);
+      }
+    }, 30000);
 
     // Refetch when page becomes visible (user navigates back)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        fetchActivities();
+        fetchActivities(false);
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // Refetch when window gains focus
     const handleFocus = () => {
-      fetchActivities();
+      fetchActivities(false);
     };
     window.addEventListener('focus', handleFocus);
 
@@ -67,9 +69,9 @@ export default function RecentActivity() {
     };
   }, []);
 
-  const fetchActivities = async () => {
+  const fetchActivities = async (showSpinner: boolean) => {
     try {
-      setLoading(true);
+      if (showSpinner) setLoading(true);
       const res = await fetch(`/api/admin/recent-activities?t=${Date.now()}`, {
         cache: 'no-store',
         headers: {
@@ -83,7 +85,7 @@ export default function RecentActivity() {
     } catch (err) {
       console.error('Error fetching recent activities:', err);
     } finally {
-      setLoading(false);
+      if (showSpinner) setLoading(false);
     }
   };
 

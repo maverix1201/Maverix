@@ -3,14 +3,16 @@
 import { useSession } from 'next-auth/react';
 import { useEffect, useState, useCallback } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
-import EmployeeTeamInfo from '@/components/EmployeeTeamInfo';
-import EmployeeSearch from '@/components/EmployeeSearch';
-import TimeTrackingWidget from '@/components/TimeTrackingWidget';
-import UpcomingBirthdays from '@/components/UpcomingBirthdays';
-import EmployeeProfileCard from '@/components/EmployeeProfileCard';
-import BirthdayCelebration from '@/components/BirthdayCelebration';
-import AnnouncementModal from '@/components/AnnouncementModal';
-import NotificationDropdown from '@/components/NotificationDropdown';
+import dynamic from 'next/dynamic';
+// Lazy-load heavy widgets/modals to speed up initial dashboard load.
+const EmployeeTeamInfo = dynamic(() => import('@/components/EmployeeTeamInfo'), { ssr: false });
+const EmployeeSearch = dynamic(() => import('@/components/EmployeeSearch'), { ssr: false });
+const TimeTrackingWidget = dynamic(() => import('@/components/TimeTrackingWidget'), { ssr: false });
+const UpcomingBirthdays = dynamic(() => import('@/components/UpcomingBirthdays'), { ssr: false });
+const EmployeeProfileCard = dynamic(() => import('@/components/EmployeeProfileCard'), { ssr: false });
+const BirthdayCelebration = dynamic(() => import('@/components/BirthdayCelebration'), { ssr: false });
+const AnnouncementModal = dynamic(() => import('@/components/AnnouncementModal'), { ssr: false });
+const NotificationDropdown = dynamic(() => import('@/components/NotificationDropdown'), { ssr: false });
 import { Clock, Calendar, Users, TrendingUp, Megaphone, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/contexts/ToastContext';
@@ -322,9 +324,10 @@ export default function EmployeeDashboard() {
     if (!session) return;
     
     const interval = setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
       fetchActiveAnnouncements(false); // Check for updates
       fetchUnreadNotificationCount(); // Check for new notifications
-    }, 5000); // Check every 5 seconds for new announcements
+    }, 30000); // Check periodically; immediate updates via events/push where possible
 
     return () => clearInterval(interval);
   }, [session, lastAnnouncementId, fetchActiveAnnouncements]);

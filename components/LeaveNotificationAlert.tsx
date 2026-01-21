@@ -28,10 +28,12 @@ export default function LeaveNotificationAlert() {
   useEffect(() => {
     fetchNotifications();
     
-    // Poll for new notifications every 2 seconds
+    // Poll for new notifications (fallback only; keep modest)
     const interval = setInterval(() => {
-      fetchNotifications();
-    }, 2000);
+      if (document.visibilityState === 'visible') {
+        fetchNotifications();
+      }
+    }, 15000);
 
     // Listen for custom event when leave is approved/rejected
     const handleLeaveStatusChange = () => {
@@ -39,10 +41,17 @@ export default function LeaveNotificationAlert() {
     };
     
     window.addEventListener('leaveStatusChanged', handleLeaveStatusChange);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchNotifications();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       clearInterval(interval);
       window.removeEventListener('leaveStatusChanged', handleLeaveStatusChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 

@@ -44,9 +44,24 @@ export default function PendingEmployees() {
 
   useEffect(() => {
     fetchPendingEmployees();
-    // Refresh every 10 seconds
-    const interval = setInterval(fetchPendingEmployees, 10000);
-    return () => clearInterval(interval);
+    // Refresh periodically (keep modest to reduce load)
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchPendingEmployees();
+      }
+    }, 30000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchPendingEmployees();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [fetchPendingEmployees]);
 
   const handleApprove = async (employeeId: string) => {

@@ -33,9 +33,17 @@ export default function GlobalNotificationListener() {
       return;
     }
 
+    // Polling every 1s is extremely expensive for both client and server.
+    // We rely on the custom in-tab event for immediate updates, and use
+    // polling only as a fallback for cross-tab / remote updates.
+    const POLL_INTERVAL_MS = 15000; // 15s
+
     // Function to check for new notifications and show them
     const checkAndShowNotifications = async () => {
       try {
+        // Don't do background work when the tab is hidden
+        if (document.visibilityState !== 'visible') return;
+
         const res = await fetch(`/api/notifications?limit=1&includeDismissed=false&t=${Date.now()}`, {
           cache: 'no-store',
           headers: { 'Cache-Control': 'no-cache' },
@@ -89,8 +97,8 @@ export default function GlobalNotificationListener() {
     // Initial check
     checkAndShowNotifications();
 
-    // Poll for new notifications every 1 second for faster response
-    pollingIntervalRef.current = setInterval(checkAndShowNotifications, 1000);
+    // Poll for new notifications (fallback only)
+    pollingIntervalRef.current = setInterval(checkAndShowNotifications, POLL_INTERVAL_MS);
 
     // Also listen for custom events (when notifications are created)
     const handleNotificationCreated = (event: CustomEvent) => {
@@ -117,6 +125,14 @@ export default function GlobalNotificationListener() {
 
     window.addEventListener('notificationCreated' as any, handleNotificationCreated as EventListener);
 
+    // Re-check immediately when returning to the tab
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkAndShowNotifications();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     // Handle notification clicks
     const handleNotificationClick = (event: Event) => {
       const notification = (event.target as Notification);
@@ -141,6 +157,7 @@ export default function GlobalNotificationListener() {
         'notificationCreated' as any,
         handleNotificationCreated as EventListener
       );
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [session, router]);
 

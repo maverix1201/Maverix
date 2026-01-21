@@ -24,34 +24,36 @@ export async function GET(request: NextRequest) {
 
     await connectDB();
 
-    // Auto-normalize existing employee IDs based on "joiningYear added time"
-    // so Admin/HR always see consistent IDs in the panel.
-    await ensureEmpIdsByJoiningYear();
+    const { searchParams } = new URL(request.url);
+    const minimal = searchParams.get('minimal') === 'true';
+
+    // Auto-normalize employee IDs only when the caller needs full employee data.
+    // This is an expensive routine; dropdowns/search screens should use `?minimal=true`.
+    if (!minimal) {
+      await ensureEmpIdsByJoiningYear();
+    }
 
     // Return all non-admin users (employee + hr) for admin/hr roles
     const users = await User.find({ role: { $ne: 'admin' } })
-      .select('_id name email role empId designation profileImage mobileNumber joiningYear joiningYearUpdatedAt emailVerified approved weeklyOff clockInTime createdAt')
+      .select(
+        minimal
+          ? '_id name email role profileImage'
+          : '_id name email role empId designation profileImage mobileNumber joiningYear joiningYearUpdatedAt emailVerified approved weeklyOff clockInTime createdAt'
+      )
       .lean();
 
-    // Safety: never expose empId if joiningYear is missing/invalid.
-    // (Prevents UI from showing empId after joiningYear was cleared, even if legacy data exists.)
-    const sanitizedUsers = (users as any[]).map((u) => {
-      const jy = u.joiningYear;
-      const validYear = typeof jy === 'number' && jy >= 1900 && jy <= 2100;
-      if (!validYear) {
-        return { ...u, empId: undefined, joiningYearUpdatedAt: undefined };
-      }
-      return u;
-    });
-
-    // Debug logging to verify weeklyOff is being returned
-    console.log('[Get Users] Users with weeklyOff:', users.map((u: any) => ({ 
-      name: u.name, 
-      email: u.email, 
-      weeklyOff: u.weeklyOff,
-      weeklyOffType: typeof u.weeklyOff,
-      weeklyOffIsArray: Array.isArray(u.weeklyOff)
-    })));
+    const sanitizedUsers = minimal
+      ? users
+      : // Safety: never expose empId if joiningYear is missing/invalid.
+        // (Prevents UI from showing empId after joiningYear was cleared, even if legacy data exists.)
+        (users as any[]).map((u) => {
+          const jy = u.joiningYear;
+          const validYear = typeof jy === 'number' && jy >= 1900 && jy <= 2100;
+          if (!validYear) {
+            return { ...u, empId: undefined, joiningYearUpdatedAt: undefined };
+          }
+          return u;
+        });
 
     const response = NextResponse.json({ users: sanitizedUsers });
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');

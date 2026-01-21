@@ -134,7 +134,7 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
 
   const fetchEmployees = useCallback(async () => {
     try {
-      const res = await fetch(`/api/users?t=${Date.now()}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
+      const res = await fetch(`/api/users?minimal=true&t=${Date.now()}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
       const data = await res.json();
       const currentUserId = (session?.user as any)?.id;
       // Include both employees and HR users (exclude only admin)

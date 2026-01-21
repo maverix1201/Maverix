@@ -124,7 +124,7 @@ export default function AdminLeaveAllotmentPage() {
 
   const fetchEmployees = async () => {
     try {
-      const res = await fetch('/api/users');
+      const res = await fetch('/api/users?minimal=true');
       const data = await res.json();
       // Include both employees and HR users (exclude only admin)
       setEmployees(data.users?.filter((u: any) => u.role !== 'admin') || []);

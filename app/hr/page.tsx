@@ -9,11 +9,12 @@ import { motion } from 'framer-motion';
 import { useEffect, useState, useCallback } from 'react';
 import UserAvatar from '@/components/UserAvatar';
 import LoadingDots from '@/components/LoadingDots';
-import AnnouncementManagement from '@/components/AnnouncementManagement';
-import NotClockedInModal from '@/components/NotClockedInModal';
-import EmployeeSearch from '@/components/EmployeeSearch';
-import RecentActivity from '@/components/RecentActivity';
-import UpcomingBirthdays from '@/components/UpcomingBirthdays';
+import dynamic from 'next/dynamic';
+const AnnouncementManagement = dynamic(() => import('@/components/AnnouncementManagement'), { ssr: false });
+const NotClockedInModal = dynamic(() => import('@/components/NotClockedInModal'), { ssr: false });
+const EmployeeSearch = dynamic(() => import('@/components/EmployeeSearch'), { ssr: false });
+const RecentActivity = dynamic(() => import('@/components/RecentActivity'), { ssr: false });
+const UpcomingBirthdays = dynamic(() => import('@/components/UpcomingBirthdays'), { ssr: false });
 import { formatDistanceToNow } from 'date-fns';
 
 interface RecentTeam {
@@ -80,30 +81,32 @@ export default function HRDashboard() {
   }, [session]);
 
   useEffect(() => {
-    fetchStats();
-    fetchRecentTeams();
+    fetchStats(true);
+    fetchRecentTeams(true);
     if (session) {
       fetchProfileImage();
     }
 
-    // Auto-refresh teams every 5 seconds
+    // Auto-refresh teams (light refresh) - keep this modest to reduce load
     const interval = setInterval(() => {
-      fetchRecentTeams();
-    }, 5000);
+      if (document.visibilityState === 'visible') {
+        fetchRecentTeams(false);
+      }
+    }, 30000);
 
     // Refetch when page becomes visible (user navigates back)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        fetchStats();
-        fetchRecentTeams();
+        fetchStats(false);
+        fetchRecentTeams(false);
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // Refetch when window gains focus
     const handleFocus = () => {
-      fetchStats();
-      fetchRecentTeams();
+      fetchStats(false);
+      fetchRecentTeams(false);
     };
     window.addEventListener('focus', handleFocus);
 
@@ -114,9 +117,9 @@ export default function HRDashboard() {
     };
   }, [session, fetchProfileImage]);
 
-  const fetchStats = async () => {
+  const fetchStats = async (showSpinner: boolean) => {
     try {
-      setLoading(true);
+      if (showSpinner) setLoading(true);
       const res = await fetch(`/api/hr/stats?t=${Date.now()}`, {
         cache: 'no-store',
         headers: {
@@ -136,13 +139,13 @@ export default function HRDashboard() {
     } catch (err) {
       console.error('Error fetching stats:', err);
     } finally {
-      setLoading(false);
+      if (showSpinner) setLoading(false);
     }
   };
 
-  const fetchRecentTeams = async () => {
+  const fetchRecentTeams = async (showSpinner: boolean) => {
     try {
-      setTeamsLoading(true);
+      if (showSpinner) setTeamsLoading(true);
       const res = await fetch(`/api/teams/recent?t=${Date.now()}`, {
         cache: 'no-store',
         headers: {
@@ -156,7 +159,7 @@ export default function HRDashboard() {
     } catch (err) {
       console.error('Error fetching recent teams:', err);
     } finally {
-      setTeamsLoading(false);
+      if (showSpinner) setTeamsLoading(false);
     }
   };
 

@@ -26,9 +26,28 @@ export default function ProfileCompletionBanner() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [dismissed, setDismissed] = useState(false);
+  const userId = (session?.user as any)?.id as string | undefined;
 
   useEffect(() => {
-    fetchProfile();
+    // Try fast in-memory/sessionStorage cache to avoid refetching on every route change.
+    const cacheKey = userId ? `profileCompletionBanner:${userId}` : null;
+    if (cacheKey) {
+      try {
+        const raw = sessionStorage.getItem(cacheKey);
+        if (raw) {
+          const parsed = JSON.parse(raw) as { ts: number; profile: UserProfile };
+          // Cache is short-lived; correctness still converges via profileUpdated event.
+          if (parsed?.ts && Date.now() - parsed.ts < 5 * 60 * 1000) {
+            setProfile(parsed.profile);
+            setLoading(false);
+          }
+        }
+      } catch {
+        // ignore cache errors
+      }
+    }
+
+    fetchProfile({ force: !cacheKey }); // if we can't cache, ensure we fetch
 
     // Refresh profile when page becomes visible (user might have updated profile)
     const handleVisibilityChange = () => {
@@ -37,30 +56,48 @@ export default function ProfileCompletionBanner() {
       }
     };
 
-    // Refresh when window gains focus
-    const handleFocus = () => {
-      fetchProfile();
-    };
-
     // Listen for custom event when profile is updated
     const handleProfileUpdate = () => {
-      setTimeout(() => fetchProfile(), 500);
+      // Invalidate cache and refetch
+      const cacheKeyInner = userId ? `profileCompletionBanner:${userId}` : null;
+      if (cacheKeyInner) {
+        try {
+          sessionStorage.removeItem(cacheKeyInner);
+        } catch {
+          // ignore
+        }
+      }
+      setTimeout(() => fetchProfile({ force: true }), 500);
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
     window.addEventListener('profileUpdated', handleProfileUpdate);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
       window.removeEventListener('profileUpdated', handleProfileUpdate);
     };
-  }, []);
+  }, [userId]);
 
-  const fetchProfile = async () => {
+  const fetchProfile = async (opts?: { force?: boolean }) => {
     try {
-      setLoading(true);
+      // Throttle background refreshes to keep navigation snappy
+      const cacheKey = userId ? `profileCompletionBanner:${userId}` : null;
+      if (!opts?.force && cacheKey) {
+        try {
+          const raw = sessionStorage.getItem(cacheKey);
+          if (raw) {
+            const parsed = JSON.parse(raw) as { ts: number; profile: UserProfile };
+            if (parsed?.ts && Date.now() - parsed.ts < 60 * 1000) {
+              return; // refreshed recently
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      if (!profile) setLoading(true);
       // Get basic profile fields (fast endpoint)
       const profileReq = fetch('/api/profile', { cache: 'no-store' });
 
@@ -77,10 +114,20 @@ export default function ProfileCompletionBanner() {
       const imageData = imageRes.ok ? await imageRes.json() : { profileImage: null };
 
       if (profileRes.ok && profileData.user) {
-        setProfile({
+        const nextProfile = {
           ...profileData.user,
           profileImage: imageData?.profileImage || profileData.user?.profileImage,
-        });
+        } as UserProfile;
+
+        setProfile(nextProfile);
+
+        if (cacheKey) {
+          try {
+            sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), profile: nextProfile }));
+          } catch {
+            // ignore
+          }
+        }
       }
     } catch (err) {
       console.error('Error fetching profile:', err);

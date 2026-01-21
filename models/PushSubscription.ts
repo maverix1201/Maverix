@@ -17,7 +17,6 @@ const PushSubscriptionSchema: Schema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      index: true,
     },
     endpoint: {
       type: String,
@@ -42,7 +41,6 @@ const PushSubscriptionSchema: Schema = new Schema(
 
 // Index for efficient queries
 PushSubscriptionSchema.index({ userId: 1 });
-PushSubscriptionSchema.index({ endpoint: 1 });
 
 const PushSubscription: Model<IPushSubscription> =
   mongoose.models.PushSubscription ||

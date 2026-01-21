@@ -5,6 +5,13 @@ function makeEmpId(joiningYear: number, seq: number) {
   return `${joiningYear}EMP-${String(seq).padStart(3, '0')}`;
 }
 
+let lastRunAtMs = 0;
+let lastResult:
+  | { changed: boolean; totalWithJoiningYear: number; updated?: number }
+  | null = null;
+let inFlight: Promise<{ changed: boolean; totalWithJoiningYear: number; updated?: number }> | null =
+  null;
+
 function getStableJoinYearTime(user: any): Date {
   // For older records that don't have joiningYearUpdatedAt yet, we approximate using updatedAt,
   // since joiningYear was typically added via an update (profile/admin edit).
@@ -28,6 +35,17 @@ export async function ensureEmpIdsByJoiningYear(): Promise<{
   totalWithJoiningYear: number;
   updated?: number;
 }> {
+  // This routine is intentionally expensive (multiple queries + bulk writes).
+  // Calling it on every /api/users request can significantly slow page loads.
+  // We throttle runs in-process; correctness is preserved because IDs only need
+  // to converge, and changes to joiningYear are relatively infrequent.
+  const MIN_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+  const now = Date.now();
+
+  if (inFlight) return inFlight;
+  if (lastResult && now - lastRunAtMs < MIN_INTERVAL_MS) return lastResult;
+
+  inFlight = (async () => {
   // If joiningYear was removed for a user, they must not keep an empId.
   // (Also clear joiningYearUpdatedAt so future re-add sets a fresh timestamp.)
   await User.updateMany(
@@ -129,6 +147,16 @@ export async function ensureEmpIdsByJoiningYear(): Promise<{
     { upsert: true, new: true }
   );
 
-  return { changed: true, totalWithJoiningYear, updated: bulkRes.modifiedCount };
+    return { changed: true, totalWithJoiningYear, updated: bulkRes.modifiedCount };
+  })();
+
+  try {
+    const res = await inFlight;
+    lastRunAtMs = Date.now();
+    lastResult = res;
+    return res;
+  } finally {
+    inFlight = null;
+  }
 }
 

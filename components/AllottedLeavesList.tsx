@@ -281,6 +281,12 @@ export default function AllottedLeavesList({ leaves, employees, onRefresh, onEdi
                             return formatHoursMinutes(leave.hours, leave.minutes);
                           }
                           
+                          // Handle decimal days properly
+                          if (leave.days === 0.5) {
+                            return '0.5 day';
+                          } else if (leave.days && leave.days < 1 && leave.days > 0) {
+                            return `${leave.days.toFixed(2)} day`;
+                          }
                           return `${leave.days || 'N/A'} ${leave.days === 1 ? 'day' : 'days'}`;
                         })()}
                     </span>

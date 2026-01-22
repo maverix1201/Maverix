@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { allocations } = await request.json();
+    const { allocations, deletedLeaveIds } = await request.json();
     const allottedBy = (session.user as any).id;
 
     if (!allocations || !Array.isArray(allocations) || allocations.length === 0) {
@@ -37,14 +37,67 @@ export async function POST(request: NextRequest) {
     const results: any[] = [];
     const errors: any[] = [];
 
-    // Process each allocation
-    for (const allocation of allocations) {
+    // Performance optimization: Pre-fetch all unique leave types in a single query
+    const uniqueLeaveTypeIds = [...new Set(allocations.map(a => a.leaveType))];
+    const leaveTypeIds = uniqueLeaveTypeIds.map(id => new mongoose.Types.ObjectId(id));
+    const leaveTypesMap = new Map();
+    
+    const leaveTypes = await LeaveType.find({ _id: { $in: leaveTypeIds } }).lean();
+    leaveTypes.forEach((lt: any) => {
+      leaveTypesMap.set(lt._id.toString(), lt);
+    });
+
+    // Performance optimization: Pre-check all existing leaves in a single query
+    // Exclude deleted leave IDs if provided (for edit mode)
+    const userIds = [...new Set(allocations.map(a => a.userId))];
+    const userIdObjs = userIds.map(id => new mongoose.Types.ObjectId(id));
+    
+    const existingLeavesQuery: any = {
+      userId: { $in: userIdObjs },
+      leaveType: { $in: leaveTypeIds },
+      allottedBy: { $exists: true, $ne: null },
+    };
+    
+    // Exclude deleted leave IDs from the check (for edit mode)
+    if (deletedLeaveIds && Array.isArray(deletedLeaveIds) && deletedLeaveIds.length > 0) {
+      const deletedIds = deletedLeaveIds.map((id: string) => new mongoose.Types.ObjectId(id));
+      existingLeavesQuery._id = { $nin: deletedIds };
+    }
+    
+    const existingLeaves = await Leave.find(existingLeavesQuery).select('userId leaveType').lean();
+    
+    // Create a Set for fast lookup: "userId-leaveTypeId"
+    const existingLeavesSet = new Set(
+      existingLeaves.map((el: any) => 
+        `${el.userId.toString()}-${el.leaveType.toString()}`
+      )
+    );
+
+    // Prepare all leave documents for bulk insert
+    const leaveDocuments: any[] = [];
+    const allocationMetadata: Map<number, { userId: string; leaveType: string }> = new Map();
+    const startDate = new Date();
+    const currentTime = new Date();
+
+    // Process all allocations and prepare documents
+    for (let i = 0; i < allocations.length; i++) {
+      const allocation = allocations[i];
       const { userId, leaveType, days, hours, minutes, carryForward, reason } = allocation;
 
       try {
-        // Verify leave type exists first
+        // Validate userId and leaveType
+        if (!userId || !leaveType) {
+          errors.push({
+            userId: userId || 'unknown',
+            leaveType: leaveType || 'unknown',
+            error: 'Employee and leave type are required',
+          });
+          continue;
+        }
+
         const leaveTypeId = new mongoose.Types.ObjectId(leaveType);
-        const leaveTypeExists = await LeaveType.findById(leaveTypeId);
+        const leaveTypeExists = leaveTypesMap.get(leaveType);
+
         if (!leaveTypeExists) {
           errors.push({
             userId,
@@ -62,11 +115,10 @@ export async function POST(request: NextRequest) {
 
         // Validate required fields based on leave type
         if (isShortDayLeaveType) {
-          // For shortday leave types, check if hours or minutes are provided and valid
           const hoursValue = hours !== undefined && hours !== null ? parseInt(String(hours)) : 0;
           const minutesValue = minutes !== undefined && minutes !== null ? parseInt(String(minutes)) : 0;
           
-          if (!userId || !leaveType || (isNaN(hoursValue) && isNaN(minutesValue)) || (hoursValue === 0 && minutesValue === 0)) {
+          if ((isNaN(hoursValue) && isNaN(minutesValue)) || (hoursValue === 0 && minutesValue === 0)) {
             errors.push({
               userId,
               leaveType,
@@ -75,7 +127,7 @@ export async function POST(request: NextRequest) {
             continue;
           }
         } else {
-          if (!userId || !leaveType || !days) {
+          if (!days) {
             errors.push({
               userId,
               leaveType,
@@ -85,15 +137,10 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Check if this employee already has this leave type allotted
+        // Check if this employee already has this leave type allotted (using pre-fetched data)
         const userIdObj = new mongoose.Types.ObjectId(userId);
-        const existingLeave = await Leave.findOne({
-          userId: userIdObj,
-          leaveType: leaveTypeId,
-          allottedBy: { $exists: true, $ne: null },
-        });
-
-        if (existingLeave) {
+        const existingKey = `${userId}-${leaveType}`;
+        if (existingLeavesSet.has(existingKey)) {
           errors.push({
             userId,
             leaveType,
@@ -102,42 +149,39 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Calculate start and end dates
-        const startDate = new Date();
-        const endDate = new Date();
+        // Calculate end date (create new Date instance for each allocation)
+        const allocationStartDate = new Date(startDate);
+        const endDate = new Date(allocationStartDate);
         
         const leaveData: any = {
           userId: userIdObj,
           leaveType: leaveTypeId,
-          startDate,
+          startDate: allocationStartDate,
           endDate,
           reason: reason || 'Allotted by admin/HR',
           status: 'approved',
           allottedBy: allottedByObj,
-          allottedAt: new Date(),
+          allottedAt: currentTime,
           approvedBy: allottedByObj,
-          approvedAt: new Date(),
+          approvedAt: currentTime,
           carryForward: carryForward || false,
         };
 
         if (isShortDayLeaveType) {
-          // For shortday leave types, store hours and minutes
           const hoursValue = hours !== undefined && hours !== null ? parseInt(String(hours)) : 0;
           const minutesValue = minutes !== undefined && minutes !== null ? parseInt(String(minutes)) : 0;
           
-          // Normalize minutes (convert to hours if >= 60)
           const totalMinutes = hoursValue * 60 + minutesValue;
           const normalizedHours = Math.floor(totalMinutes / 60);
           const normalizedMinutes = totalMinutes % 60;
           
-          leaveData.days = 0; // Set days to 0 for shortday leave types
+          leaveData.days = 0;
           leaveData.hours = normalizedHours;
           leaveData.minutes = normalizedMinutes;
           leaveData.remainingHours = normalizedHours;
           leaveData.remainingMinutes = normalizedMinutes;
         } else {
-          // For regular leave types, use days
-          const daysValue = parseInt(String(days));
+          const daysValue = parseFloat(String(days));
           if (isNaN(daysValue) || daysValue <= 0) {
             errors.push({
               userId,
@@ -146,25 +190,59 @@ export async function POST(request: NextRequest) {
             });
             continue;
           }
-          endDate.setDate(startDate.getDate() + daysValue - 1);
+          const daysToAdd = Math.ceil(daysValue) - 1;
+          endDate.setDate(allocationStartDate.getDate() + daysToAdd);
           leaveData.days = daysValue;
           leaveData.remainingDays = daysValue;
         }
 
-        const leave = new Leave(leaveData);
-
-        await leave.save();
-        await leave.populate('userId', 'name email profileImage');
-        await leave.populate('allottedBy', 'name email profileImage');
-        await leave.populate('leaveType', 'name description');
-
-        results.push(leave);
+        leaveDocuments.push(leaveData);
+        allocationMetadata.set(leaveDocuments.length - 1, { userId, leaveType });
       } catch (error: any) {
         errors.push({
-          userId,
-          leaveType,
+          userId: userId || 'unknown',
+          leaveType: leaveType || 'unknown',
           error: error.message || 'Unknown error',
         });
+      }
+    }
+
+    // Performance optimization: Bulk insert all leaves at once
+    if (leaveDocuments.length > 0) {
+      try {
+        const insertedLeaves = await Leave.insertMany(leaveDocuments, { ordered: false });
+        
+        // Batch populate all inserted leaves
+        const populatedLeaves = await Leave.find({
+          _id: { $in: insertedLeaves.map(l => l._id) }
+        })
+          .populate('userId', 'name email profileImage')
+          .populate('allottedBy', 'name email profileImage')
+          .populate('leaveType', 'name description')
+          .lean();
+        
+        results.push(...populatedLeaves);
+      } catch (bulkError: any) {
+        // If bulk insert fails, fall back to individual inserts for better error reporting
+        console.warn('Bulk insert failed, falling back to individual inserts:', bulkError.message);
+        
+        for (let i = 0; i < leaveDocuments.length; i++) {
+          try {
+            const leave = new Leave(leaveDocuments[i]);
+            await leave.save();
+            await leave.populate('userId', 'name email profileImage');
+            await leave.populate('allottedBy', 'name email profileImage');
+            await leave.populate('leaveType', 'name description');
+            results.push(leave);
+          } catch (individualError: any) {
+            const metadata = allocationMetadata.get(i);
+            errors.push({
+              userId: metadata?.userId || 'unknown',
+              leaveType: metadata?.leaveType || 'unknown',
+              error: individualError.message || 'Failed to save leave',
+            });
+          }
+        }
       }
     }
 

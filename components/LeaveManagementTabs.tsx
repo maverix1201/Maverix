@@ -28,6 +28,7 @@ interface Leave {
   days: number;
   reason: string;
   status: 'pending' | 'approved' | 'rejected';
+  medicalReport?: string;
   createdAt: string;
   allottedBy?: {
     _id: string;
@@ -373,7 +374,7 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
         // For regular leave types, check days
         const daysStr = lt.days?.trim() || '';
         if (!daysStr) return true; // Invalid - empty
-        const days = parseInt(daysStr);
+        const days = parseFloat(daysStr);
         return isNaN(days) || days <= 0; // Invalid - NaN or <= 0
       }
     });
@@ -386,12 +387,24 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
     setLoading(true);
 
     try {
-      // If editing, delete old leaves first
+      // If editing, delete old leaves first and collect their IDs
+      let deletedLeaveIds: string[] = [];
       if (editingEmployeeId && editingEmployeeLeaves.length > 0) {
         const deletePromises = editingEmployeeLeaves.map((leave) =>
           fetch(`/api/leave/${leave._id}`, { method: 'DELETE' })
         );
-        await Promise.all(deletePromises);
+        const deleteResults = await Promise.all(deletePromises);
+        
+        // Verify all deletes succeeded
+        const failedDeletes = deleteResults.filter(res => !res.ok);
+        if (failedDeletes.length > 0) {
+          toast.error(`Failed to delete ${failedDeletes.length} old leave(s). Please try again.`);
+          setLoading(false);
+          return;
+        }
+        
+        // Collect deleted leave IDs to exclude from existing leaves check
+        deletedLeaveIds = editingEmployeeLeaves.map((leave) => leave._id);
       }
 
       // Create allocations for all combinations
@@ -433,7 +446,7 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
             allocations.push({
               userId,
               leaveType: lt.leaveTypeId,
-              days: parseInt(lt.days),
+              days: parseFloat(lt.days),
               reason: `Allotted by ${role === 'admin' ? 'Admin' : 'HR'}`,
             });
           }
@@ -443,7 +456,10 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
       const res = await fetch('/api/leave/allot/bulk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ allocations }),
+        body: JSON.stringify({ 
+          allocations,
+          deletedLeaveIds: deletedLeaveIds.length > 0 ? deletedLeaveIds : undefined,
+        }),
       });
 
       const data = await res.json();
@@ -970,7 +986,8 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
                             ) : (
                               <input
                                 type="number"
-                                min="1"
+                                min="0.1"
+                                step="0.1"
                                 value={lt.days}
                                 onChange={(e) => updateLeaveTypeDays(lt.leaveTypeId, e.target.value)}
                                 placeholder="Days"

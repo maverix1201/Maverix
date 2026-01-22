@@ -113,14 +113,16 @@ export async function POST(request: NextRequest) {
       leaveData.remainingMinutes = normalizedMinutes;
     } else {
       // For regular leave types, use days
-      const daysValue = parseInt(String(days));
+      const daysValue = parseFloat(String(days));
       if (isNaN(daysValue) || daysValue <= 0) {
         return NextResponse.json(
           { error: 'Invalid days value' },
           { status: 400 }
         );
       }
-      endDate.setDate(startDate.getDate() + daysValue - 1);
+      // For decimal days, calculate end date properly
+      const daysToAdd = Math.ceil(daysValue) - 1; // Subtract 1 because start date is included
+      endDate.setDate(startDate.getDate() + daysToAdd);
       leaveData.days = daysValue;
       leaveData.remainingDays = daysValue;
     }

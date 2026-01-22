@@ -18,6 +18,7 @@ export interface ILeave extends Document {
   status: 'pending' | 'approved' | 'rejected';
   halfDayType?: 'first-half' | 'second-half'; // For half-day leaves
   shortDayTime?: string; // For short-day leaves (time range in format "HH:MM-HH:MM" or "HH:MM" for backward compatibility)
+  medicalReport?: string; // URL or file path for medical report (for medical leave)
   approvedBy?: mongoose.Types.ObjectId;
   approvedAt?: Date;
   rejectionReason?: string;
@@ -60,6 +61,9 @@ const LeaveSchema: Schema = new Schema(
     },
     shortDayTime: {
       type: String, // Store time in HH:MM format (e.g., "09:30", "14:00")
+    },
+    medicalReport: {
+      type: String, // URL or file path for medical report
     },
     remainingDays: {
       type: Number,
@@ -126,6 +130,13 @@ const LeaveSchema: Schema = new Schema(
     timestamps: true,
   }
 );
+
+// Performance optimization: Add indexes for common query patterns
+LeaveSchema.index({ userId: 1, leaveType: 1, allottedBy: 1 }); // For checking existing allotted leaves
+LeaveSchema.index({ userId: 1, leaveType: 1, status: 1 }); // For fetching user leaves by type and status
+LeaveSchema.index({ userId: 1, status: 1 }); // For fetching all user leaves by status
+LeaveSchema.index({ allottedBy: 1 }); // For fetching all allotted leaves
+LeaveSchema.index({ createdAt: -1 }); // For sorting by creation date
 
 // Force recompilation of the model to ensure schema changes take effect
 // This is necessary when changing from enum to ObjectId reference

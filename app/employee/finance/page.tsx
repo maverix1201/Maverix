@@ -18,10 +18,16 @@ import {
   Eye,
   EyeOff,
   Lock,
+  Upload,
+  Image as ImageIcon,
+  XCircle,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import UserAvatar from '@/components/UserAvatar';
 import { useToast } from '@/contexts/ToastContext';
+import { compressImage, blobToFile, getFileSizeKB } from '@/utils/imageCompression';
 
 interface Finance {
   _id: string;
@@ -30,6 +36,8 @@ interface Finance {
   baseSalary: number;
   totalSalary: number;
   createdAt: string;
+  panCardImage?: string;
+  aadharCardImage?: string;
 }
 
 interface User {
@@ -55,12 +63,62 @@ export default function EmployeeFinancePage() {
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [verifyingPassword, setVerifyingPassword] = useState(false);
+  const [uploadingDocs, setUploadingDocs] = useState<{ [key: string]: boolean }>({});
+  const [docPreview, setDocPreview] = useState<{ [key: string]: { pan?: string; aadhar?: string } }>({});
+  const [userDocuments, setUserDocuments] = useState<{ panCardImage?: string; aadharCardImage?: string }>({});
+  const [documentsExpanded, setDocumentsExpanded] = useState(true);
   const toast = useToast();
 
   useEffect(() => {
     fetchFinances();
     fetchUserProfile();
+    fetchUserDocuments();
   }, []);
+
+  // Refetch documents when page becomes visible (handles page refresh)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchUserDocuments();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  const fetchUserDocuments = async () => {
+    try {
+      const res = await fetch('/api/profile/documents', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
+      const data = await res.json();
+      
+      if (res.ok) {
+        // Handle null values properly - convert null/empty to undefined, but keep actual URLs
+        const panCard = data.panCardImage && typeof data.panCardImage === 'string' && data.panCardImage.trim() !== '' && data.panCardImage !== 'null'
+          ? data.panCardImage 
+          : undefined;
+        const aadharCard = data.aadharCardImage && typeof data.aadharCardImage === 'string' && data.aadharCardImage.trim() !== '' && data.aadharCardImage !== 'null'
+          ? data.aadharCardImage 
+          : undefined;
+        
+        setUserDocuments({
+          panCardImage: panCard,
+          aadharCardImage: aadharCard,
+        });
+      } else {
+        console.error('Failed to fetch documents:', data.error);
+      }
+    } catch (err) {
+      console.error('Error fetching user documents:', err);
+    }
+  };
 
   const fetchUserProfile = async () => {
     try {
@@ -186,6 +244,180 @@ export default function EmployeeFinancePage() {
     setPassword('');
     setPasswordError('');
     setVerifyingPassword(false);
+  };
+
+  const handleDocumentUpload = async (documentType: 'pan' | 'aadhar', file: File) => {
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 10MB before compression)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image size must be less than 10MB');
+      return;
+    }
+
+    try {
+      setUploadingDocs(prev => ({ ...prev, [`general-${documentType}`]: true }));
+
+      // Compress image to max 100KB
+      const originalSizeKB = getFileSizeKB(file);
+      const compressedBlob = await compressImage(file, 100, 1200, 1200);
+      const compressedFile = blobToFile(compressedBlob, file.name, 'image/jpeg');
+      const compressedSizeKB = getFileSizeKB(compressedFile);
+      
+      // Log compression info (only show toast if significant compression occurred)
+      if (originalSizeKB > compressedSizeKB && (originalSizeKB - compressedSizeKB) > 50) {
+        console.log(`Document compressed from ${originalSizeKB.toFixed(2)}KB to ${compressedSizeKB.toFixed(2)}KB`);
+      }
+      
+      // Verify compression was successful (should be <= 100KB)
+      if (compressedSizeKB > 100) {
+        console.warn(`Warning: Compressed size (${compressedSizeKB.toFixed(2)}KB) exceeds target of 100KB`);
+      }
+
+      // Upload compressed file
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', compressedFile, file.name);
+
+      const uploadRes = await fetch('/api/profile/upload', {
+        method: 'POST',
+        body: uploadFormData,
+      });
+
+      const uploadData = await uploadRes.json();
+
+      if (!uploadRes.ok) {
+        toast.error(uploadData.error || 'Failed to upload document');
+        setUploadingDocs(prev => ({ ...prev, [`general-${documentType}`]: false }));
+        return;
+      }
+
+      // Update user profile with document URL (stored at user level, not finance level)
+      const updateRes = await fetch('/api/profile/documents', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          [documentType === 'pan' ? 'panCardImage' : 'aadharCardImage']: uploadData.url,
+        }),
+      });
+
+      const updateData = await updateRes.json();
+
+      if (!updateRes.ok) {
+        toast.error(updateData.error || 'Failed to save document');
+        setUploadingDocs(prev => ({ ...prev, [`general-${documentType}`]: false }));
+        // Clear preview on error
+        setDocPreview(prev => {
+          const newPreview = { ...prev };
+          if (newPreview['general']) {
+            newPreview['general'] = { ...newPreview['general'], [documentType]: undefined };
+          }
+          return newPreview;
+        });
+        return;
+      }
+
+      // Update state immediately with the uploaded URL from server response
+      if (updateData.panCardImage || updateData.aadharCardImage) {
+        setUserDocuments(prev => ({
+          ...prev,
+          panCardImage: updateData.panCardImage || prev.panCardImage,
+          aadharCardImage: updateData.aadharCardImage || prev.aadharCardImage,
+        }));
+      } else {
+        // Fallback: use the uploaded URL if server response doesn't include it
+        setUserDocuments(prev => ({
+          ...prev,
+          [documentType === 'pan' ? 'panCardImage' : 'aadharCardImage']: uploadData.url,
+        }));
+      }
+
+      toast.success(`${documentType === 'pan' ? 'PAN' : 'Aadhar'} card uploaded successfully`);
+      
+      // Clear preview after state is updated (preview is no longer needed since we have the real URL)
+      setDocPreview(prev => {
+        const newPreview = { ...prev };
+        if (newPreview['general']) {
+          newPreview['general'] = { ...newPreview['general'], [documentType]: undefined };
+        }
+        return newPreview;
+      });
+      
+      setUploadingDocs(prev => ({ ...prev, [`general-${documentType}`]: false }));
+      
+      // Refresh documents from server to ensure consistency (optional, since we already updated state)
+      // await fetchUserDocuments();
+    } catch (err: any) {
+      toast.error(err.message || 'An error occurred');
+      setUploadingDocs(prev => ({ ...prev, [`general-${documentType}`]: false }));
+      // Clear preview on error
+      setDocPreview(prev => {
+        const newPreview = { ...prev };
+        if (newPreview['general']) {
+          newPreview['general'] = { ...newPreview['general'], [documentType]: undefined };
+        }
+        return newPreview;
+      });
+    }
+  };
+
+  const handleDocumentChange = (documentType: 'pan' | 'aadhar', e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Show preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setDocPreview({ ...docPreview, general: { ...docPreview['general'], [documentType]: reader.result as string } });
+    };
+    reader.readAsDataURL(file);
+
+    // Upload document
+    handleDocumentUpload(documentType, file);
+  };
+
+  const handleRemoveDocument = async (documentType: 'pan' | 'aadhar') => {
+    try {
+      const updateRes = await fetch('/api/profile/documents', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          [documentType === 'pan' ? 'panCardImage' : 'aadharCardImage']: null,
+        }),
+      });
+
+      const updateData = await updateRes.json();
+
+      if (!updateRes.ok) {
+        toast.error(updateData.error || 'Failed to remove document');
+        return;
+      }
+
+      toast.success(`${documentType === 'pan' ? 'PAN' : 'Aadhar'} card removed successfully`);
+      
+      // Update state immediately
+      setUserDocuments(prev => ({
+        ...prev,
+        [documentType === 'pan' ? 'panCardImage' : 'aadharCardImage']: undefined,
+      }));
+
+      // Clear preview
+      setDocPreview(prev => {
+        const newPreview = { ...prev };
+        if (newPreview['general']) {
+          newPreview['general'] = { ...newPreview['general'], [documentType]: undefined };
+        }
+        return newPreview;
+      });
+      
+      // Refresh documents from server to ensure consistency
+      await fetchUserDocuments();
+    } catch (err: any) {
+      toast.error(err.message || 'An error occurred');
+    }
   };
 
   // Calculate stats
@@ -427,6 +659,132 @@ export default function EmployeeFinancePage() {
             )}
           </div>
 
+          {/* Documents Section - Always Visible */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/50 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-gradient-to-br from-primary to-purple-600 p-2.5 rounded-lg shadow-lg">
+                  <FileText className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-primary font-bold text-gray-800">Documents</h2>
+                  <p className="text-xs text-gray-600 font-secondary">Upload your PAN and Aadhar card documents</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setDocumentsExpanded(!documentsExpanded)}
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                title={documentsExpanded ? 'Minimize' : 'Expand'}
+              >
+                {documentsExpanded ? (
+                  <ChevronUp className="w-5 h-5" />
+                ) : (
+                  <ChevronDown className="w-5 h-5" />
+                )}
+              </button>
+            </div>
+
+            {documentsExpanded && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* PAN Card */}
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-gray-700 font-secondary">PAN Card</label>
+                {(userDocuments.panCardImage && userDocuments.panCardImage.trim() !== '') || (docPreview['general']?.pan && docPreview['general']?.pan.trim() !== '') ? (
+                  <div className="relative">
+                    <img
+                      src={userDocuments.panCardImage || docPreview['general']?.pan}
+                      alt="PAN Card"
+                      className="w-full h-40 object-cover rounded-lg border border-gray-200"
+                      onError={(e) => {
+                        console.error('Error loading PAN card image');
+                        // If image fails to load, clear it from state
+                        setUserDocuments(prev => ({ ...prev, panCardImage: undefined }));
+                      }}
+                    />
+                    <button
+                      onClick={() => handleRemoveDocument('pan')}
+                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
+                      title="Remove PAN Card"
+                    >
+                      <XCircle className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                    {uploadingDocs['general-pan'] ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <LoadingDots size="sm" />
+                        <span className="text-xs text-gray-500">Uploading...</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2">
+                        <Upload className="w-6 h-6 text-gray-400" />
+                        <span className="text-xs text-gray-600 font-secondary">Upload PAN Card</span>
+                        <span className="text-xs text-gray-400 font-secondary">(Image format)</span>
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleDocumentChange('pan', e)}
+                      className="hidden"
+                      disabled={uploadingDocs['general-pan']}
+                    />
+                  </label>
+                )}
+              </div>
+
+              {/* Aadhar Card */}
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-gray-700 font-secondary">Aadhar Card</label>
+                {(userDocuments.aadharCardImage && userDocuments.aadharCardImage.trim() !== '') || (docPreview['general']?.aadhar && docPreview['general']?.aadhar.trim() !== '') ? (
+                  <div className="relative">
+                    <img
+                      src={userDocuments.aadharCardImage || docPreview['general']?.aadhar}
+                      alt="Aadhar Card"
+                      className="w-full h-40 object-cover rounded-lg border border-gray-200"
+                      onError={(e) => {
+                        console.error('Error loading Aadhar card image');
+                        // If image fails to load, clear it from state
+                        setUserDocuments(prev => ({ ...prev, aadharCardImage: undefined }));
+                      }}
+                    />
+                    <button
+                      onClick={() => handleRemoveDocument('aadhar')}
+                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
+                      title="Remove Aadhar Card"
+                    >
+                      <XCircle className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                    {uploadingDocs['general-aadhar'] ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <LoadingDots size="sm" />
+                        <span className="text-xs text-gray-500">Uploading...</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2">
+                        <Upload className="w-6 h-6 text-gray-400" />
+                        <span className="text-xs text-gray-600 font-secondary">Upload Aadhar Card</span>
+                        <span className="text-xs text-gray-400 font-secondary">(Image format)</span>
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleDocumentChange('aadhar', e)}
+                      className="hidden"
+                      disabled={uploadingDocs['general-aadhar']}
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+            )}
+          </div>
+
           {/* Salary Records */}
           {loading ? (
             <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/50 p-8 flex flex-col items-center justify-center">
@@ -468,7 +826,7 @@ export default function EmployeeFinancePage() {
                   </div>
 
                   <div className="pt-3 border-t border-gray-200">
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center mb-4">
                       <span className="text-sm font-semibold text-gray-700 font-primary">
                         Salary
                       </span>
@@ -480,6 +838,7 @@ export default function EmployeeFinancePage() {
                         {showSalary ? formatCurrency(finance.baseSalary) : '••••••'}
                       </span>
                     </div>
+
                   </div>
                 </motion.div>
               ))}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Calendar, Clock, User, CheckCircle, X, Trash2, Users } from 'lucide-react';
+import { Plus, Calendar, Clock, User, CheckCircle, X, Trash2, Users, ChevronDown, ChevronUp } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/contexts/ToastContext';
 import CircleProgress from './CircleProgress';
@@ -67,15 +67,18 @@ export default function EmployeeLeaveView({ initialLeaves, onLeavesUpdated }: Em
     halfDayType: '' as '' | 'first-half' | 'second-half',
     shortDayFromTime: '',
     shortDayToTime: '',
+    medicalReportFile: null as File | null,
   });
+  const [uploadingMedicalReport, setUploadingMedicalReport] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; leave: Leave | null }>({
     isOpen: false,
     leave: null,
   });
-  const [reasonModal, setReasonModal] = useState<{ isOpen: boolean; reason: string }>({
+  const [reasonModal, setReasonModal] = useState<{ isOpen: boolean; reason: string; medicalReport?: string }>({
     isOpen: false,
     reason: '',
   });
+  const [medicalReportMinimized, setMedicalReportMinimized] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -137,7 +140,7 @@ export default function EmployeeLeaveView({ initialLeaves, onLeavesUpdated }: Em
     e.preventDefault();
     setLoading(true);
 
-    // Check if selected leave type is halfday or shortday
+    // Check if selected leave type is halfday, shortday, or medical
     const selectedLeaveType = leaveTypes.find((type) => type._id === formData.leaveType);
     const isHalfDay = selectedLeaveType?.name?.toLowerCase().includes('halfday') ||
       selectedLeaveType?.name?.toLowerCase().includes('half-day') ||
@@ -145,6 +148,7 @@ export default function EmployeeLeaveView({ initialLeaves, onLeavesUpdated }: Em
     const isShortDay = selectedLeaveType?.name?.toLowerCase().includes('shortday') ||
       selectedLeaveType?.name?.toLowerCase().includes('short-day') ||
       selectedLeaveType?.name?.toLowerCase().includes('short day');
+    const isMedicalLeave = selectedLeaveType?.name?.toLowerCase().includes('medical');
 
     // Validate half-day selection
     if (isHalfDay && !formData.halfDayType) {
@@ -169,6 +173,13 @@ export default function EmployeeLeaveView({ initialLeaves, onLeavesUpdated }: Em
         setLoading(false);
         return;
       }
+    }
+
+    // Validate medical leave - require medical report
+    if (isMedicalLeave && !formData.medicalReportFile) {
+      toast.error('Please upload a medical report for medical leave');
+      setLoading(false);
+      return;
     }
 
     // Check balance before submitting
@@ -232,10 +243,59 @@ export default function EmployeeLeaveView({ initialLeaves, onLeavesUpdated }: Em
     }
 
     try {
+      // Upload medical report file if provided
+      let medicalReportUrl: string | undefined = undefined;
+      if (isMedicalLeave && formData.medicalReportFile) {
+        setUploadingMedicalReport(true);
+        try {
+          const uploadFormData = new FormData();
+          uploadFormData.append('file', formData.medicalReportFile);
+
+          const uploadRes = await fetch('/api/profile/upload', {
+            method: 'POST',
+            body: uploadFormData,
+          });
+
+          if (!uploadRes.ok) {
+            const uploadError = await uploadRes.json();
+            throw new Error(uploadError.error || 'Failed to upload medical report');
+          }
+
+          const uploadData = await uploadRes.json();
+          medicalReportUrl = uploadData.url;
+        } catch (uploadError: any) {
+          toast.error(uploadError.message || 'Failed to upload medical report');
+          setLoading(false);
+          setUploadingMedicalReport(false);
+          return;
+        } finally {
+          setUploadingMedicalReport(false);
+        }
+      }
+
+      // Prepare request body
+      const requestBody: any = {
+        leaveType: formData.leaveType,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        reason: formData.reason,
+        ...(formData.halfDayType && { halfDayType: formData.halfDayType }),
+        ...(formData.shortDayFromTime && formData.shortDayToTime && {
+          shortDayFromTime: formData.shortDayFromTime,
+          shortDayToTime: formData.shortDayToTime,
+        }),
+        ...(medicalReportUrl && { medicalReport: medicalReportUrl }),
+      };
+      
+      // Log request body for debugging
+      if (medicalReportUrl) {
+        console.log('[EmployeeLeaveView] Sending leave request with medical report:', medicalReportUrl);
+      }
+
       const res = await fetch('/api/leave', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await res.json();
@@ -248,7 +308,16 @@ export default function EmployeeLeaveView({ initialLeaves, onLeavesUpdated }: Em
 
       toast.success('Leave request submitted successfully');
       setShowRequestModal(false);
-      setFormData({ leaveType: '', startDate: '', endDate: '', reason: '', halfDayType: '', shortDayFromTime: '', shortDayToTime: '' });
+      setFormData({ 
+        leaveType: '', 
+        startDate: '', 
+        endDate: '', 
+        reason: '', 
+        halfDayType: '', 
+        shortDayFromTime: '', 
+        shortDayToTime: '',
+        medicalReportFile: null,
+      });
       // Refresh leaves
       const leavesRes = await fetch('/api/leave');
       const leavesData = await leavesRes.json();
@@ -592,7 +661,11 @@ export default function EmployeeLeaveView({ initialLeaves, onLeavesUpdated }: Em
                       </td>
                       <td className="px-4 py-3">
                         <button
-                          onClick={() => setReasonModal({ isOpen: true, reason: leave.reason })}
+                          onClick={() => setReasonModal({ 
+                            isOpen: true, 
+                            reason: leave.reason || 'No reason provided',
+                            medicalReport: (leave as any).medicalReport,
+                          })}
                           className="bg-blue-100 text-[10px] px-2 py-0.5 rounded-xl text-blue-500 max-w-xs truncate font-secondary hover:text-blue-700 transition-colors text-left"
                           title="Click to view full reason"
                         >Click to View
@@ -754,6 +827,54 @@ export default function EmployeeLeaveView({ initialLeaves, onLeavesUpdated }: Em
                           </div>
                         </motion.button>
                       </div>
+                    </motion.div>
+                  );
+                }
+                return null;
+              })()}
+
+              {/* Medical Report Upload - Only shown when Medical Leave is selected */}
+              {formData.leaveType && (() => {
+                const selectedLeaveType = leaveTypes.find((type) => type._id === formData.leaveType);
+                const isMedicalLeave = selectedLeaveType?.name?.toLowerCase().includes('medical');
+
+                if (isMedicalLeave) {
+                  return (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="bg-gradient-to-r from-red-50/80 to-pink-50/80 backdrop-blur-sm rounded-lg p-3 border border-red-200/50"
+                    >
+                      <label className="block text-xs font-medium text-gray-700 mb-2 font-secondary">
+                        Upload Medical Report <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="file"
+                        accept="image/*,.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          if (file) {
+                            // Validate file size (max 5MB for non-images, 100KB for images after compression)
+                            const maxSize = file.type.startsWith('image/') ? 5 * 1024 * 1024 : 5 * 1024 * 1024; // 5MB for all
+                            if (file.size > maxSize) {
+                              toast.error(`File size must be less than ${Math.round(maxSize / 1024 / 1024)}MB`);
+                              e.target.value = '';
+                              return;
+                            }
+                          }
+                          setFormData({ ...formData, medicalReportFile: file });
+                        }}
+                        required
+                        className="w-full px-2 py-1.5 text-xs text-gray-700 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none font-secondary bg-white/80 backdrop-blur-sm file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-red-100 file:text-red-700 hover:file:bg-red-200"
+                      />
+                      {formData.medicalReportFile && (
+                        <p className="text-[10px] text-gray-600 mt-1 font-secondary">
+                          Selected: {formData.medicalReportFile.name}
+                        </p>
+                      )}
+                      <p className="text-[10px] text-gray-500 mt-1 font-secondary">
+                        Upload medical report (Image, PDF, or Document)
+                      </p>
                     </motion.div>
                   );
                 }
@@ -1209,7 +1330,7 @@ export default function EmployeeLeaveView({ initialLeaves, onLeavesUpdated }: Em
                   type="button"
                   onClick={() => {
                     setShowRequestModal(false);
-                    setFormData({ leaveType: '', startDate: '', endDate: '', reason: '', halfDayType: '', shortDayFromTime: '', shortDayToTime: '' });
+                    setFormData({ leaveType: '', startDate: '', endDate: '', reason: '', halfDayType: '', shortDayFromTime: '', shortDayToTime: '', medicalReportFile: null });
                   }}
                   className="flex-1 px-3 py-2 text-sm border border-gray-300/50 rounded-lg text-gray-700 hover:bg-gray-50/80 backdrop-blur-sm transition-colors font-secondary"
                 >
@@ -1217,13 +1338,17 @@ export default function EmployeeLeaveView({ initialLeaves, onLeavesUpdated }: Em
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || !formData.leaveType || !formData.startDate || !formData.endDate || !formData.reason}
+                  disabled={(() => {
+                    const selectedLeaveType = leaveTypes.find((type) => type._id === formData.leaveType);
+                    const isMedical = selectedLeaveType?.name?.toLowerCase().includes('medical');
+                    return loading || uploadingMedicalReport || !formData.leaveType || !formData.startDate || !formData.endDate || !formData.reason || (isMedical && !formData.medicalReportFile);
+                  })()}
                   className="flex-1 px-3 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-secondary flex items-center justify-center gap-2"
                 >
-                  {loading ? (
+                  {loading || uploadingMedicalReport ? (
                     <>
                       <LoadingDots size="sm" color="white" />
-                      <span>Submitting...</span>
+                      <span>{uploadingMedicalReport ? 'Uploading Report...' : 'Submitting...'}</span>
                     </>
                   ) : (
                     'Submit Request'
@@ -1275,17 +1400,116 @@ export default function EmployeeLeaveView({ initialLeaves, onLeavesUpdated }: Em
       {/* Reason Modal */}
       {reasonModal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white/80 backdrop-blur-md rounded-lg p-6 max-w-md w-full mx-4">
+          <div className="bg-white/80 backdrop-blur-md rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg text-gray-800 font-semibold">Leave Reason</h3>
+              <h3 className="text-lg text-gray-800 font-semibold">Leave Details</h3>
               <button
-                onClick={() => setReasonModal({ isOpen: false, reason: '' })}
+                onClick={() => {
+                  setReasonModal({ isOpen: false, reason: '', medicalReport: undefined });
+                  setMedicalReportMinimized(false);
+                }}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <p className="bg-white/70 p-3 rounded-md text-gray-700 text-sm whitespace-pre-wrap">{reasonModal.reason}</p>
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2 font-secondary">Reason:</h4>
+                <p className="bg-white/70 p-3 rounded-md text-gray-700 text-sm whitespace-pre-wrap break-words">{reasonModal.reason}</p>
+              </div>
+              {reasonModal.medicalReport && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-semibold text-gray-700 font-secondary">Medical Report:</h4>
+                    <button
+                      onClick={() => setMedicalReportMinimized(!medicalReportMinimized)}
+                      className="text-gray-500 hover:text-gray-700 transition-colors p-1"
+                      title={medicalReportMinimized ? 'Expand Report' : 'Minimize Report'}
+                    >
+                      {medicalReportMinimized ? (
+                        <ChevronDown className="w-4 h-4" />
+                      ) : (
+                        <ChevronUp className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                  {!medicalReportMinimized && (
+                    <div className="bg-red-50 p-3 rounded-md border border-red-200">
+                    {reasonModal.medicalReport.startsWith('data:image/') ? (
+                      // Display image inline
+                      <div className="space-y-2">
+                        <img 
+                          src={reasonModal.medicalReport} 
+                          alt="Medical Report" 
+                          className="max-w-full h-auto rounded-md border border-red-300"
+                          onError={(e) => {
+                            console.error('Error loading medical report image:', e);
+                            (e.target as HTMLImageElement).style.display = 'none';
+                            const parent = (e.target as HTMLImageElement).parentElement;
+                            if (parent) {
+                              parent.innerHTML = `
+                                <a href="${reasonModal.medicalReport}" download="medical-report" class="flex items-center gap-2 text-red-700 hover:text-red-900 font-medium text-sm font-secondary">
+                                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                  </svg>
+                                  Download Medical Report
+                                </a>
+                              `;
+                            }
+                          }}
+                        />
+                        <a
+                          href={reasonModal.medicalReport}
+                          download="medical-report.jpg"
+                          className="flex items-center gap-2 text-red-700 hover:text-red-900 font-medium text-sm font-secondary mt-2"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                          Download Report
+                        </a>
+                      </div>
+                    ) : reasonModal.medicalReport.startsWith('data:application/pdf') ? (
+                      // PDF - show download link and embed if possible
+                      <div className="space-y-2">
+                        <iframe
+                          src={reasonModal.medicalReport}
+                          className="w-full h-96 rounded-md border border-red-300"
+                          title="Medical Report PDF"
+                          onError={(e) => {
+                            console.error('Error loading PDF:', e);
+                          }}
+                        />
+                        <a
+                          href={reasonModal.medicalReport}
+                          download="medical-report.pdf"
+                          className="flex items-center gap-2 text-red-700 hover:text-red-900 font-medium text-sm font-secondary"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                          Download PDF Report
+                        </a>
+                      </div>
+                    ) : (
+                      // Other document types - download link
+                      <a
+                        href={reasonModal.medicalReport}
+                        download="medical-report"
+                        className="flex items-center gap-2 text-red-700 hover:text-red-900 font-medium text-sm font-secondary"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download Medical Report
+                      </a>
+                    )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

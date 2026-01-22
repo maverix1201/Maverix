@@ -1,7 +1,11 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import DashboardLayout from '@/components/DashboardLayout';
+import dynamic from 'next/dynamic';
+
+const DashboardLayout = dynamic(() => import('@/components/DashboardLayout'), {
+  ssr: false,
+});
 import Feed from '@/components/Feed';
 
 export default async function HRFeedPage() {

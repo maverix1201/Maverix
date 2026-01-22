@@ -21,6 +21,8 @@ export interface IUser extends Document {
   bankName?: string;
   accountNumber?: string;
   ifscCode?: string;
+  panCardImage?: string;
+  aadharCardImage?: string;
   weeklyOff?: string[]; // Array of day names like ['Sunday', 'Monday']
   clockInTime?: string; // Individual clock-in time limit (HH:mm format, e.g., "09:30")
   createdAt: Date;
@@ -110,6 +112,12 @@ const UserSchema: Schema = new Schema(
       type: String,
       trim: true,
       uppercase: true,
+    },
+    panCardImage: {
+      type: String,
+    },
+    aadharCardImage: {
+      type: String,
     },
     weeklyOff: {
       type: [String],

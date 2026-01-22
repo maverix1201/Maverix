@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     }
 
     const finances = await Finance.find(query)
-      .populate('userId', 'name email profileImage bankName accountNumber ifscCode')
+      .populate('userId', 'name email profileImage bankName accountNumber ifscCode panCardImage aadharCardImage')
       .sort({ year: -1, month: -1 })
       .lean();
 
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     });
 
     await finance.save();
-    await finance.populate('userId', 'name email profileImage bankName accountNumber ifscCode');
+    await finance.populate('userId', 'name email profileImage bankName accountNumber ifscCode panCardImage aadharCardImage');
 
     return NextResponse.json({
       message: 'Finance record created successfully',

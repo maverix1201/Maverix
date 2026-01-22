@@ -236,7 +236,11 @@ export default function AdminLeaveAllotmentPage() {
     }
 
     // Validate all leave types have days entered
-    const invalidLeaveTypes = selectedLeaveTypes.filter((lt) => !lt.days || parseInt(lt.days) <= 0);
+    const invalidLeaveTypes = selectedLeaveTypes.filter((lt) => {
+      if (!lt.days) return true;
+      const daysValue = parseFloat(lt.days);
+      return isNaN(daysValue) || daysValue <= 0;
+    });
     if (invalidLeaveTypes.length > 0) {
       toast.error('Please enter valid days for all selected leave types');
       return;
@@ -252,7 +256,7 @@ export default function AdminLeaveAllotmentPage() {
           allocations.push({
             userId,
             leaveType: lt.leaveTypeId,
-            days: parseInt(lt.days),
+            days: parseFloat(lt.days),
             reason: 'Allotted by Admin',
           });
         });
@@ -509,7 +513,8 @@ export default function AdminLeaveAllotmentPage() {
                           <div className="flex items-center gap-2">
                             <input
                               type="number"
-                              min="1"
+                              min="0.1"
+                              step="0.1"
                               value={lt.days}
                               onChange={(e) => updateLeaveTypeDays(lt.leaveTypeId, e.target.value)}
                               placeholder="Days"

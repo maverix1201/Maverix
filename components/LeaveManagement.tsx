@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Check, X, Calendar, Clock, Trash2 } from 'lucide-react';
+import { Plus, Check, X, Calendar, Clock, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/contexts/ToastContext';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
@@ -39,6 +39,7 @@ interface Leave {
   status: 'pending' | 'approved' | 'rejected';
   halfDayType?: 'first-half' | 'second-half';
   shortDayTime?: string;
+  medicalReport?: string;
   createdAt: string;
   allottedBy?: {
     _id: string;
@@ -104,10 +105,11 @@ export default function LeaveManagement({
   });
   const [rejecting, setRejecting] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [reasonModal, setReasonModal] = useState<{ isOpen: boolean; reason: string }>({
+  const [reasonModal, setReasonModal] = useState<{ isOpen: boolean; reason: string; medicalReport?: string; leaveType?: string | { name: string } }>({
     isOpen: false,
     reason: '',
   });
+  const [medicalReportMinimized, setMedicalReportMinimized] = useState(true);
 
   // Update leaves when initialLeaves changes
   useEffect(() => {
@@ -700,12 +702,24 @@ export default function LeaveManagement({
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <button
-                            onClick={() => setReasonModal({ isOpen: true, reason: leave.reason || 'No reason provided' })}
-                            className="bg-blue-100 text-[10px] px-2 py-0.5 rounded-xl text-blue-500 hover:text-primary-dark font-secondary no-underline cursor-pointer"
-                          >
-                            Click to view
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setReasonModal({ 
+                                isOpen: true, 
+                                reason: leave.reason || 'No reason provided',
+                                medicalReport: (leave as any).medicalReport,
+                                leaveType: leave.leaveType,
+                              })}
+                              className="bg-blue-100 text-[10px] px-2 py-0.5 rounded-xl text-blue-500 hover:text-primary-dark font-secondary no-underline cursor-pointer"
+                            >
+                              Click to view
+                            </button>
+                            {(leave as any).medicalReport && (
+                              <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-red-100 text-red-700 font-secondary" title="Medical Report Attached">
+                                📄 Report
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span
@@ -835,6 +849,43 @@ export default function LeaveManagement({
                   <span className="font-semibold">Reason:</span> {rejectModal.leave.reason}
                 </div>
               )}
+              {(rejectModal.leave as any).medicalReport && (
+                <div>
+                  <span className="font-semibold">Medical Report:</span>
+                  <div className="mt-2">
+                    {(rejectModal.leave as any).medicalReport.startsWith('data:image/') ? (
+                      <div className="space-y-2">
+                        <img 
+                          src={(rejectModal.leave as any).medicalReport} 
+                          alt="Medical Report" 
+                          className="max-w-full h-auto rounded-md border border-red-300 max-h-64"
+                        />
+                        <a
+                          href={(rejectModal.leave as any).medicalReport}
+                          download="medical-report.jpg"
+                          className="inline-flex items-center gap-2 text-red-700 hover:text-red-900 font-medium text-sm font-secondary"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                          Download Report
+                        </a>
+                      </div>
+                    ) : (
+                      <a
+                        href={(rejectModal.leave as any).medicalReport}
+                        download="medical-report"
+                        className="inline-flex items-center gap-2 text-red-700 hover:text-red-900 font-medium text-sm font-secondary"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download Medical Report
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           ) : null
         }
@@ -890,6 +941,43 @@ export default function LeaveManagement({
               </div>
               <div>
                 <span className="font-semibold">Reason:</span> {deleteModal.leave.reason}
+                {(deleteModal.leave as any).medicalReport && (
+                  <div className="mt-2">
+                    <span className="font-semibold">Medical Report:</span>
+                    <div className="mt-1">
+                      {(deleteModal.leave as any).medicalReport.startsWith('data:image/') ? (
+                        <div className="space-y-2">
+                          <img 
+                            src={(deleteModal.leave as any).medicalReport} 
+                            alt="Medical Report" 
+                            className="max-w-full h-auto rounded-md border border-red-300 max-h-64"
+                          />
+                          <a
+                            href={(deleteModal.leave as any).medicalReport}
+                            download="medical-report.jpg"
+                            className="inline-flex items-center gap-2 text-red-700 hover:text-red-900 font-medium text-sm font-secondary"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            Download Report
+                          </a>
+                        </div>
+                      ) : (
+                        <a
+                          href={(deleteModal.leave as any).medicalReport}
+                          download="medical-report"
+                          className="inline-flex items-center gap-2 text-red-700 hover:text-red-900 font-medium text-sm font-secondary"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                          Download Medical Report
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
               <div>
                 <span className="font-semibold">Status:</span> {deleteModal.leave.status}
@@ -912,16 +1000,115 @@ export default function LeaveManagement({
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-primary font-bold text-gray-800">Leave Reason</h2>
               <button
-                onClick={() => setReasonModal({ isOpen: false, reason: '' })}
+                onClick={() => {
+                  setReasonModal({ isOpen: false, reason: '', medicalReport: undefined, leaveType: undefined });
+                  setMedicalReportMinimized(false);
+                }}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="bg-white/70 rounded-lg p-4 border border-gray-200">
-              <p className="text-sm text-gray-700 font-secondary whitespace-pre-wrap break-words">
-                {reasonModal.reason}
-              </p>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2 font-secondary">Reason:</h3>
+                <div className="bg-white/70 rounded-lg p-4 border border-gray-200">
+                  <p className="text-sm text-gray-700 font-secondary whitespace-pre-wrap break-words">
+                    {reasonModal.reason}
+                  </p>
+                </div>
+              </div>
+              {reasonModal.medicalReport && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-gray-700 font-secondary">Medical Report:</h3>
+                    <button
+                      onClick={() => setMedicalReportMinimized(!medicalReportMinimized)}
+                      className="text-gray-500 hover:text-gray-700 transition-colors p-1"
+                      title={medicalReportMinimized ? 'Expand Report' : 'Minimize Report'}
+                    >
+                      {medicalReportMinimized ? (
+                        <ChevronDown className="w-4 h-4" />
+                      ) : (
+                        <ChevronUp className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                  {!medicalReportMinimized && (
+                    <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                    {reasonModal.medicalReport.startsWith('data:image/') ? (
+                      // Display image inline
+                      <div className="space-y-2">
+                        <img 
+                          src={reasonModal.medicalReport} 
+                          alt="Medical Report" 
+                          className="max-w-full h-auto rounded-md border border-red-300"
+                          onError={(e) => {
+                            console.error('Error loading medical report image:', e);
+                            (e.target as HTMLImageElement).style.display = 'none';
+                            const parent = (e.target as HTMLImageElement).parentElement;
+                            if (parent) {
+                              parent.innerHTML = `
+                                <a href="${reasonModal.medicalReport}" download="medical-report" class="flex items-center gap-2 text-red-700 hover:text-red-900 font-medium text-sm font-secondary">
+                                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                  </svg>
+                                  Download Medical Report
+                                </a>
+                              `;
+                            }
+                          }}
+                        />
+                        <a
+                          href={reasonModal.medicalReport}
+                          download="medical-report.jpg"
+                          className="flex items-center gap-2 text-red-700 hover:text-red-900 font-medium text-sm font-secondary mt-2"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                          Download Report
+                        </a>
+                      </div>
+                    ) : reasonModal.medicalReport.startsWith('data:application/pdf') ? (
+                      // PDF - show download link and embed if possible
+                      <div className="space-y-2">
+                        <iframe
+                          src={reasonModal.medicalReport}
+                          className="w-full h-96 rounded-md border border-red-300"
+                          title="Medical Report PDF"
+                          onError={(e) => {
+                            console.error('Error loading PDF:', e);
+                          }}
+                        />
+                        <a
+                          href={reasonModal.medicalReport}
+                          download="medical-report.pdf"
+                          className="flex items-center gap-2 text-red-700 hover:text-red-900 font-medium text-sm font-secondary"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                          Download PDF Report
+                        </a>
+                      </div>
+                    ) : (
+                      // Other document types - download link
+                      <a
+                        href={reasonModal.medicalReport}
+                        download="medical-report"
+                        className="flex items-center gap-2 text-red-700 hover:text-red-900 font-medium text-sm font-secondary"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download Medical Report
+                      </a>
+                    )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             {/* <div className="mt-4 flex justify-end">
               <button

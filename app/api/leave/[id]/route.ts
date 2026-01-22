@@ -458,7 +458,18 @@ export async function PATCH(
     }
 
     if (days !== undefined) {
-      leave.days = parseInt(days);
+      const daysValue = parseFloat(String(days));
+      if (isNaN(daysValue) || daysValue <= 0) {
+        return NextResponse.json(
+          { error: 'Invalid days value' },
+          { status: 400 }
+        );
+      }
+      leave.days = daysValue;
+      // Update remaining days if it exists
+      if (leave.remainingDays !== undefined) {
+        leave.remainingDays = daysValue;
+      }
     }
 
     if (startDate) {

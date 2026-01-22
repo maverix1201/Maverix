@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { leaveType, startDate, endDate, reason, halfDayType, shortDayTime, shortDayFromTime, shortDayToTime } = await request.json();
+    const { leaveType, startDate, endDate, reason, halfDayType, shortDayTime, shortDayFromTime, shortDayToTime, medicalReport } = await request.json();
     const userId = (session.user as any).id;
 
     if (!leaveType || !startDate || !endDate || !reason) {
@@ -303,8 +303,15 @@ export async function POST(request: NextRequest) {
 
         // Check if balance is sufficient
         if (actualRemainingDays < days) {
+          // Format decimal days for display
+          const remainingDisplay = actualRemainingDays % 1 === 0 
+            ? actualRemainingDays.toString() 
+            : actualRemainingDays.toFixed(2);
+          const requestedDisplay = days % 1 === 0 
+            ? days.toString() 
+            : days.toFixed(2);
           return NextResponse.json(
-            { error: `Insufficient leave balance. You have ${actualRemainingDays} days remaining, but requested ${days} days.` },
+            { error: `Insufficient leave balance. You have ${remainingDisplay} days remaining, but requested ${requestedDisplay} days.` },
             { status: 400 }
           );
         }
@@ -321,7 +328,13 @@ export async function POST(request: NextRequest) {
       status: 'pending', // Always pending - requires admin/HR approval
       ...(isHalfDay && { halfDayType }), // Include halfDayType if it's a half-day leave
       ...(isShortDay && finalShortDayTime && { shortDayTime: finalShortDayTime }), // Include shortDayTime if it's a short-day leave
+      ...(medicalReport && { medicalReport }), // Include medicalReport if provided
     };
+    
+    // Log medical report for debugging
+    if (medicalReport) {
+      console.log('[Leave API] Medical report received:', medicalReport);
+    }
     
     // For shortday leave types, store hours and minutes
     if (isShortDayLeaveType && isShortDay) {
@@ -332,6 +345,11 @@ export async function POST(request: NextRequest) {
     const leave = new Leave(leaveData);
 
     await leave.save();
+    
+    // Log saved medical report for debugging
+    if (leave.medicalReport) {
+      console.log('[Leave API] Medical report saved successfully:', leave.medicalReport);
+    }
     await leave.populate('userId', 'name email profileImage');
     await leave.populate('leaveType', 'name description');
 

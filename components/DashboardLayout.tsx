@@ -16,6 +16,7 @@ import {
   IconUserCircle,
   IconMessage,
   IconCalendarEvent,
+  IconFileText,
 } from '@tabler/icons-react';
 import Logo from './Logo';
 import UserAvatar from './UserAvatar';
@@ -35,10 +36,15 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children, role }: DashboardLayoutProps) {
   const { data: session, status } = useSession();
-  const pathname = usePathname();
-  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  const pathname = usePathname();
+  const router = useRouter();
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Fetch profileImage if not in session
   useEffect(() => {
@@ -69,6 +75,8 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
 
   // Verify that the user's role matches the expected role
   useEffect(() => {
+    if (!mounted || !router) return; // Wait for client-side mount and ensure router is available
+    
     if (status === 'loading') return; // Still loading session
 
     if (status === 'unauthenticated') {
@@ -92,7 +100,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
         }
       }
     }
-  }, [session, status, role, router]);
+  }, [mounted, session, status, role, router]);
 
   const adminMenu = [
     { name: 'Dashboard', href: '/admin', icon: IconLayoutDashboard },
@@ -102,6 +110,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
     { name: 'Leave Management', href: '/admin/leaves', icon: IconCalendar },
     { name: 'Attendance', href: '/admin/attendance', icon: IconClock },
     { name: 'Finance', href: '/admin/finance', icon: IconCurrencyDollar },
+    { name: 'Resignation', href: '/admin/resignation', icon: IconFileText },
     { name: 'Profile', href: '/admin/profile', icon: IconUserCircle },
   ];
 
@@ -113,6 +122,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
     { name: 'Leave Management', href: '/hr/leaves', icon: IconCalendar },
     { name: 'Attendance', href: '/hr/attendance', icon: IconClock },
     { name: 'Finance Reports', href: '/hr/finance', icon: IconCurrencyDollar },
+    { name: 'Resignation', href: '/hr/resignation', icon: IconFileText },
     { name: 'Profile', href: '/hr/profile', icon: IconUserCircle },
   ];
 
@@ -122,6 +132,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
     { name: 'Attendance', href: '/employee/attendance', icon: IconClock },
     { name: 'Leave Management', href: '/employee/leaves', icon: IconCalendar },
     { name: 'Salary Slips', href: '/employee/finance', icon: IconCurrencyDollar },
+    { name: 'Resignation', href: '/employee/resignation', icon: IconFileText },
     { name: 'Profile', href: '/employee/profile', icon: IconUserCircle },
   ];
 
@@ -200,7 +211,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
               .filter((item) => item.name !== 'Profile') // Exclude Profile from main menu
               .map((item) => {
                 const Icon = item.icon;
-                const isActive = pathname === item.href;
+                const isActive = mounted && pathname === item.href;
                 return (
                   <Link
                     key={item.name}
@@ -226,7 +237,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                 .filter((item) => item.name === 'Profile')
                 .map((item) => {
                   const Icon = item.icon;
-                  const isActive = pathname === item.href;
+                  const isActive = mounted && pathname === item.href;
                   return (
                     <Link
                       key={item.name}
@@ -247,7 +258,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                 <>
                   <Link
                     href="/hr/leave-request"
-                    className={`flex items-center mt-1 gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${pathname === '/hr/leave-request'
+                    className={`flex items-center mt-1 gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${mounted && pathname === '/hr/leave-request'
                       ? 'bg-[#00009f] text-white font-medium'
                       : 'text-gray-400 hover:bg-[#00009f] hover:text-gray-100'
                       }`}
@@ -258,7 +269,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                   </Link>
                   <Link
                     href="/hr/my-attendance"
-                    className={`flex items-center mt-1 gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${pathname === '/hr/my-attendance'
+                    className={`flex items-center mt-1 gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${mounted && pathname === '/hr/my-attendance'
                       ? 'bg-[#00009f] text-white font-medium'
                       : 'text-gray-400 hover:bg-[#00009f] hover:text-gray-100'
                       }`}
@@ -269,7 +280,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                   </Link>
                   <Link
                     href="/hr/salary"
-                    className={`flex items-center mt-1 gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${pathname === '/hr/salary'
+                    className={`flex items-center mt-1 gap-2.5 px-3 py-2 rounded-lg transition-colors text-sm ${mounted && pathname === '/hr/salary'
                       ? 'bg-[#00009f] text-white font-medium'
                       : 'text-gray-400 hover:bg-[#00009f] hover:text-gray-100'
                       }`}
@@ -318,7 +329,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                   .filter((item) => item.name !== 'Profile') // Exclude Profile from menu items
                   .map((item) => {
                     const Icon = item.icon;
-                    const isActive = pathname === item.href;
+                    const isActive = mounted && pathname === item.href;
                     return (
                       <Link
                         key={item.name}
@@ -336,7 +347,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                 {/* User Profile Picture */}
                 <Link
                   href={`/${role}/profile`}
-                  className={`flex items-center justify-center px-3 py-2 rounded-xl transition-all ${pathname === `/${role}/profile`
+                  className={`flex items-center justify-center px-3 py-2 rounded-xl transition-all ${mounted && pathname === `/${role}/profile`
                     ? 'bg-primary/10'
                     : ''
                     }`}

@@ -2,7 +2,11 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
-import DashboardLayout from '@/components/DashboardLayout';
+import dynamic from 'next/dynamic';
+
+const DashboardLayout = dynamic(() => import('@/components/DashboardLayout'), {
+  ssr: false,
+});
 import connectDB from '@/lib/mongodb';
 import Attendance from '@/models/Attendance';
 import User from '@/models/User';

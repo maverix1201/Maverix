@@ -1,8 +1,13 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import DashboardLayout from '@/components/DashboardLayout';
+import dynamic from 'next/dynamic';
 import Profile from '@/components/Profile';
+
+// Dynamically import DashboardLayout with SSR disabled to avoid context issues
+const DashboardLayout = dynamic(() => import('@/components/DashboardLayout'), {
+  ssr: false,
+});
 
 export default async function AdminProfilePage() {
   const session = await getServerSession(authOptions);

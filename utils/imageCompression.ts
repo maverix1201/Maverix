@@ -93,12 +93,40 @@ export async function compressImage(
             attempts++;
           }
           
-          // If we found a good blob, use it; otherwise use the last attempt
+          // If we found a good blob, use it
           if (bestBlob) {
             resolve(bestBlob);
           } else {
             // Fallback: try with minimum quality
-            const fallbackBlob = await compressWithQuality(0.1);
+            let fallbackBlob = await compressWithQuality(0.1);
+            
+            // If still too large, reduce dimensions further and try again
+            if (fallbackBlob.size > maxSizeBytes) {
+              // Reduce dimensions progressively until we get under the limit
+              let currentWidth = width;
+              let currentHeight = height;
+              let attempts = 0;
+              const maxReductionAttempts = 5;
+              
+              while (fallbackBlob.size > maxSizeBytes && attempts < maxReductionAttempts) {
+                // Reduce by 15% each iteration
+                currentWidth = Math.floor(currentWidth * 0.85);
+                currentHeight = Math.floor(currentHeight * 0.85);
+                
+                canvas.width = currentWidth;
+                canvas.height = currentHeight;
+                
+                const ctx2 = canvas.getContext('2d');
+                if (ctx2) {
+                  ctx2.drawImage(img, 0, 0, currentWidth, currentHeight);
+                  fallbackBlob = await compressWithQuality(0.1);
+                  attempts++;
+                } else {
+                  break;
+                }
+              }
+            }
+            
             resolve(fallbackBlob);
           }
         } catch (err: any) {

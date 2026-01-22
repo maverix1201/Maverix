@@ -12,6 +12,8 @@ export interface IFinance extends Document {
   status: 'pending' | 'paid';
   paidAt?: Date;
   payslipUrl?: string;
+  panCardImage?: string;
+  aadharCardImage?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -62,6 +64,12 @@ const FinanceSchema: Schema = new Schema(
       type: Date,
     },
     payslipUrl: {
+      type: String,
+    },
+    panCardImage: {
+      type: String,
+    },
+    aadharCardImage: {
       type: String,
     },
   },

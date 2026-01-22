@@ -19,17 +19,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      return NextResponse.json({ error: 'File must be an image' }, { status: 400 });
+    // Validate file type - accept images, PDFs, and documents
+    const allowedTypes = [
+      'image/', // All image types
+      'application/pdf', // PDF files
+      'application/msword', // .doc
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+    ];
+    
+    const isValidType = allowedTypes.some(type => file.type.startsWith(type) || file.type === type);
+    if (!isValidType) {
+      return NextResponse.json({ 
+        error: 'File must be an image, PDF, or document (DOC/DOCX)' 
+      }, { status: 400 });
     }
 
-    // Validate file size (max 100KB after compression - images should be compressed client-side)
-    // This is a safety check in case compression fails
-    const maxSizeBytes = 100 * 1024; // 100KB
+    // Validate file size
+    // Images: max 5MB (will be compressed client-side to ~100KB)
+    // PDFs/Documents: max 5MB
+    const maxSizeBytes = 5 * 1024 * 1024; // 5MB
     if (file.size > maxSizeBytes) {
       return NextResponse.json({ 
-        error: `File size must be less than 100KB after compression. Current size: ${Math.round(file.size / 1024)}KB` 
+        error: `File size must be less than ${Math.round(maxSizeBytes / 1024 / 1024)}MB. Current size: ${Math.round(file.size / 1024 / 1024)}MB` 
       }, { status: 400 });
     }
 

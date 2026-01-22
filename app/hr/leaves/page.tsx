@@ -2,12 +2,16 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
-import DashboardLayout from '@/components/DashboardLayout';
+import dynamic from 'next/dynamic';
 import connectDB from '@/lib/mongodb';
 import Leave from '@/models/Leave';
 import LeaveType from '@/models/LeaveType';
 import LeaveManagementTabs from '@/components/LeaveManagementTabs';
 import LoadingDots from '@/components/LoadingDots';
+
+const DashboardLayout = dynamic(() => import('@/components/DashboardLayout'), {
+  ssr: false,
+});
 
 export default async function HRLeavesPage() {
   const session = await getServerSession(authOptions);

@@ -3,7 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
-import { Users, Calendar, Clock, UserCog, CalendarX, } from 'lucide-react';
+import { Users, Calendar, Clock, UserCog, CalendarX, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import UserAvatar from '@/components/UserAvatar';
@@ -18,6 +18,7 @@ const PendingEmployees = dynamic(() => import('@/components/PendingEmployees'), 
 const NotClockedInModal = dynamic(() => import('@/components/NotClockedInModal'), { ssr: false });
 const EmployeeSearch = dynamic(() => import('@/components/EmployeeSearch'), { ssr: false });
 const UpcomingBirthdays = dynamic(() => import('@/components/UpcomingBirthdays'), { ssr: false });
+const PayslipGenerationModal = dynamic(() => import('@/components/PayslipGenerationModal'), { ssr: false });
 
 interface RecentTeam {
   _id: string;
@@ -61,6 +62,7 @@ export default function AdminDashboard() {
   const [teamsLoading, setTeamsLoading] = useState(true);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [showNotClockedInModal, setShowNotClockedInModal] = useState(false);
+  const [showPayslipModal, setShowPayslipModal] = useState(false);
 
   // Verify admin role
   useEffect(() => {
@@ -498,6 +500,12 @@ export default function AdminDashboard() {
       <NotClockedInModal
         isOpen={showNotClockedInModal}
         onClose={() => setShowNotClockedInModal(false)}
+      />
+
+      {/* Payslip Generation Modal */}
+      <PayslipGenerationModal
+        isOpen={showPayslipModal}
+        onClose={() => setShowPayslipModal(false)}
       />
     </DashboardLayout>
   );

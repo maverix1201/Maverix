@@ -45,7 +45,7 @@ export async function PUT(
     }
 
     await finance.save();
-    await finance.populate('userId', 'name email profileImage bankName accountNumber ifscCode');
+    await finance.populate('userId', 'name email profileImage bankName accountNumber ifscCode location panNumber aadharNumber');
 
     return NextResponse.json({
       message: 'Documents updated successfully',

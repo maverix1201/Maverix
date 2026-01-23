@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
       .select(
         minimal
           ? '_id name email role profileImage'
-          : '_id name email role empId designation profileImage mobileNumber joiningYear joiningYearUpdatedAt emailVerified approved weeklyOff clockInTime createdAt bankName accountNumber ifscCode panCardImage aadharCardImage'
+          : '_id name email role empId designation profileImage mobileNumber joiningYear joiningYearUpdatedAt emailVerified approved weeklyOff clockInTime createdAt bankName accountNumber ifscCode panCardImage aadharCardImage location panNumber aadharNumber'
       )
       .lean();
 

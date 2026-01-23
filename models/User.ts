@@ -23,6 +23,9 @@ export interface IUser extends Document {
   ifscCode?: string;
   panCardImage?: string;
   aadharCardImage?: string;
+  location?: string;
+  panNumber?: string;
+  aadharNumber?: string;
   weeklyOff?: string[]; // Array of day names like ['Sunday', 'Monday']
   clockInTime?: string; // Individual clock-in time limit (HH:mm format, e.g., "09:30")
   createdAt: Date;
@@ -118,6 +121,19 @@ const UserSchema: Schema = new Schema(
     },
     aadharCardImage: {
       type: String,
+    },
+    location: {
+      type: String,
+      trim: true,
+    },
+    panNumber: {
+      type: String,
+      trim: true,
+      uppercase: true,
+    },
+    aadharNumber: {
+      type: String,
+      trim: true,
     },
     weeklyOff: {
       type: [String],

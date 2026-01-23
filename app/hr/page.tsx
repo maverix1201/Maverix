@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import TimeTrackingWidget from '@/components/TimeTrackingWidget';
-import { Calendar, Clock, Users, CalendarX, UserCog } from 'lucide-react';
+import { Calendar, Clock, Users, CalendarX, UserCog, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useEffect, useState, useCallback } from 'react';
 import UserAvatar from '@/components/UserAvatar';
@@ -15,6 +15,7 @@ const NotClockedInModal = dynamic(() => import('@/components/NotClockedInModal')
 const EmployeeSearch = dynamic(() => import('@/components/EmployeeSearch'), { ssr: false });
 const RecentActivity = dynamic(() => import('@/components/RecentActivity'), { ssr: false });
 const UpcomingBirthdays = dynamic(() => import('@/components/UpcomingBirthdays'), { ssr: false });
+const PayslipGenerationModal = dynamic(() => import('@/components/PayslipGenerationModal'), { ssr: false });
 import { formatDistanceToNow } from 'date-fns';
 
 interface RecentTeam {
@@ -57,6 +58,7 @@ export default function HRDashboard() {
   const [loading, setLoading] = useState(true);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [showNotClockedInModal, setShowNotClockedInModal] = useState(false);
+  const [showPayslipModal, setShowPayslipModal] = useState(false);
   const [recentTeams, setRecentTeams] = useState<RecentTeam[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(true);
 
@@ -236,8 +238,17 @@ export default function HRDashboard() {
                 <p className="text-sm text-gray-400 mt-0.5 font-secondary">Welcome back, <span className='font-bold text-lg text-secondary'>{session?.user?.name?.split(' ')[0] || session?.user?.name}</span></p>
               </div>
             </div>
-            <div className="w-full md:w-auto min-w-[280px] max-w-md">
-              <EmployeeSearch />
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="w-full md:w-auto min-w-[280px] max-w-md">
+                <EmployeeSearch />
+              </div>
+              <button
+                onClick={() => setShowPayslipModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-white/90 hover:bg-white text-primary-600 rounded-lg shadow-md hover:shadow-lg transition-all font-secondary text-sm font-semibold"
+              >
+                <FileText className="w-4 h-4" />
+                Generate Payslip
+              </button>
             </div>
           </div>
 
@@ -443,6 +454,12 @@ export default function HRDashboard() {
       <NotClockedInModal
         isOpen={showNotClockedInModal}
         onClose={() => setShowNotClockedInModal(false)}
+      />
+
+      {/* Payslip Generation Modal */}
+      <PayslipGenerationModal
+        isOpen={showPayslipModal}
+        onClose={() => setShowPayslipModal(false)}
       />
     </DashboardLayout>
   );

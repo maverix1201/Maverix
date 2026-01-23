@@ -20,7 +20,7 @@ export default async function AdminFinancePage() {
 
   await connectDB();
   const finances = await Finance.find()
-    .populate('userId', 'name email profileImage bankName accountNumber ifscCode')
+    .populate('userId', 'name email profileImage bankName accountNumber ifscCode location panNumber aadharNumber')
     .sort({ year: -1, month: -1 })
     .lean();
 

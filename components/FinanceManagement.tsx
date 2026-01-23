@@ -23,12 +23,14 @@ import {
   Image as ImageIcon,
   Eye,
   Download,
+  MapPin,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import UserAvatar from './UserAvatar';
 import { useToast } from '@/contexts/ToastContext';
 import LoadingDots from './LoadingDots';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
+import PayslipGenerationModal from './PayslipGenerationModal';
 
 interface Finance {
   _id: string;
@@ -62,6 +64,9 @@ interface Employee {
   ifscCode?: string;
   panCardImage?: string;
   aadharCardImage?: string;
+  location?: string;
+  panNumber?: string;
+  aadharNumber?: string;
 }
 
 interface EmployeeWithFinance {
@@ -94,6 +99,7 @@ export default function FinanceManagement({
   const [employeeDropdownOpen, setEmployeeDropdownOpen] = useState(false);
   const employeeDropdownRef = useRef<HTMLDivElement>(null);
   const [viewingDocument, setViewingDocument] = useState<{ financeId: string; type: 'pan' | 'aadhar'; url: string } | null>(null);
+  const [showPayslipModal, setShowPayslipModal] = useState(false);
   const toast = useToast();
 
   // Get current user info
@@ -112,6 +118,8 @@ export default function FinanceManagement({
   const [formData, setFormData] = useState({
     userId: '',
     baseSalary: '',
+    month: (new Date().getMonth() + 1).toString(),
+    year: new Date().getFullYear().toString(),
   });
 
   const [editFormData, setEditFormData] = useState({
@@ -217,12 +225,20 @@ export default function FinanceManagement({
     setFormData({
       userId: '',
       baseSalary: '',
+      month: (new Date().getMonth() + 1).toString(),
+      year: new Date().getFullYear().toString(),
     });
     setShowModal(true);
   };
 
   const handleCloseModal = () => {
     setShowModal(false);
+    setFormData({
+      userId: '',
+      baseSalary: '',
+      month: (new Date().getMonth() + 1).toString(),
+      year: new Date().getFullYear().toString(),
+    });
     setEmployeeDropdownOpen(false);
     setEmployeeSearchTerm('');
   };
@@ -274,14 +290,13 @@ export default function FinanceManagement({
     setLoading(true);
 
     try {
-      const currentDate = new Date();
       const res = await fetch('/api/finance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: formData.userId,
-          month: currentDate.getMonth() + 1,
-          year: currentDate.getFullYear(),
+          month: parseInt(formData.month),
+          year: parseInt(formData.year),
           baseSalary: parseFloat(formData.baseSalary),
         }),
       });
@@ -438,6 +453,9 @@ export default function FinanceManagement({
         ifscCode: finance.userId.ifscCode,
         panCardImage: (finance.userId as any).panCardImage,
         aadharCardImage: (finance.userId as any).aadharCardImage,
+        location: (finance.userId as any).location,
+        panNumber: (finance.userId as any).panNumber,
+        aadharNumber: (finance.userId as any).aadharNumber,
       },
       finance,
     }));
@@ -517,7 +535,7 @@ export default function FinanceManagement({
               </p>
             </div>
             {canEdit && (
-              <div className="flex gap-3">
+              <div className="flex gap-3 flex-wrap">
                 <div className="relative flex-1 md:flex-initial">
                   <Search className="absolute z-10 left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <input
@@ -528,6 +546,13 @@ export default function FinanceManagement({
                     className="pl-10 pr-4 py-2 text-sm border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary/50 outline-none font-secondary bg-white/80 backdrop-blur-sm w-full md:w-64"
                   />
                 </div>
+                <button
+                  onClick={() => setShowPayslipModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:shadow-lg transition-all font-secondary text-sm font-medium"
+                >
+                  <FileText className="w-4 h-4" />
+                  Generate Payslip
+                </button>
                 <button
                   onClick={handleOpenModal}
                   className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-purple-600 text-white rounded-lg hover:shadow-lg transition-all font-secondary text-sm font-medium"
@@ -647,6 +672,31 @@ export default function FinanceManagement({
                               <div className="flex justify-between items-center text-xs">
                                 <span className="text-gray-600 font-secondary font-medium">IFSC Code:</span>
                                 <span className="font-semibold text-gray-900 font-secondary font-mono">{employee.ifscCode}</span>
+                              </div>
+                            )}
+                            {(employee.location || employee.panNumber || employee.aadharNumber) && (
+                              <div className="pt-2 mt-2 border-t border-gray-200 space-y-2">
+                                {employee.location && (
+                                  <div className="flex justify-between items-center text-xs">
+                                    <span className="text-gray-600 font-secondary font-medium flex items-center gap-1">
+                                      <MapPin className="w-3 h-3" />
+                                      Location:
+                                    </span>
+                                    <span className="font-semibold text-gray-900 font-secondary">{employee.location}</span>
+                                  </div>
+                                )}
+                                {employee.panNumber && (
+                                  <div className="flex justify-between items-center text-xs">
+                                    <span className="text-gray-600 font-secondary font-medium">PAN No:</span>
+                                    <span className="font-semibold text-gray-900 font-secondary font-mono">{employee.panNumber}</span>
+                                  </div>
+                                )}
+                                {employee.aadharNumber && (
+                                  <div className="flex justify-between items-center text-xs">
+                                    <span className="text-gray-600 font-secondary font-medium">Aadhar No:</span>
+                                    <span className="font-semibold text-gray-900 font-secondary font-mono">{employee.aadharNumber}</span>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -956,6 +1006,41 @@ export default function FinanceManagement({
                     </div>
                   </div>
 
+                  {/* Month and Year Selection */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1.5 font-secondary">
+                        Month *
+                      </label>
+                      <select
+                        value={formData.month}
+                        onChange={(e) => setFormData({ ...formData, month: e.target.value })}
+                        required
+                        className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary/50 outline-none font-secondary bg-white/80 backdrop-blur-sm shadow-sm"
+                      >
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                          <option key={month} value={month}>
+                            {getMonthName(month)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1.5 font-secondary">
+                        Year *
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.year}
+                        onChange={(e) => setFormData({ ...formData, year: e.target.value })}
+                        required
+                        min="2000"
+                        max="2100"
+                        className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary/50 outline-none font-secondary bg-white/80 backdrop-blur-sm shadow-sm"
+                      />
+                    </div>
+                  </div>
+
                   {/* Base Salary */}
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1.5 font-secondary">
@@ -1228,6 +1313,14 @@ export default function FinanceManagement({
           </div>
         )}
       </AnimatePresence>
+
+      {/* Payslip Generation Modal */}
+      {canEdit && (
+        <PayslipGenerationModal
+          isOpen={showPayslipModal}
+          onClose={() => setShowPayslipModal(false)}
+        />
+      )}
     </>
   );
 }

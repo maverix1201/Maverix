@@ -23,6 +23,7 @@ import {
   XCircle,
   ChevronDown,
   ChevronUp,
+  MapPin,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import UserAvatar from '@/components/UserAvatar';
@@ -44,6 +45,9 @@ interface User {
   bankName?: string;
   accountNumber?: string;
   ifscCode?: string;
+  location?: string;
+  panNumber?: string;
+  aadharNumber?: string;
 }
 
 export default function EmployeeFinancePage() {
@@ -57,6 +61,9 @@ export default function EmployeeFinancePage() {
     bankName: '',
     accountNumber: '',
     ifscCode: '',
+    location: '',
+    panNumber: '',
+    aadharNumber: '',
   });
   const [showSalary, setShowSalary] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -125,11 +132,19 @@ export default function EmployeeFinancePage() {
       const res = await fetch('/api/profile');
       const data = await res.json();
       if (res.ok && data.user) {
+        console.log('[Finance Page] Fetched user profile:', {
+          location: data.user.location,
+          panNumber: data.user.panNumber,
+          aadharNumber: data.user.aadharNumber,
+        });
         setUser(data.user);
         setBankFormData({
           bankName: data.user.bankName || '',
           accountNumber: data.user.accountNumber || '',
           ifscCode: data.user.ifscCode || '',
+          location: data.user.location || '',
+          panNumber: data.user.panNumber || '',
+          aadharNumber: data.user.aadharNumber || '',
         });
       }
     } catch (err) {
@@ -166,14 +181,21 @@ export default function EmployeeFinancePage() {
     setBankLoading(true);
 
     try {
+      const requestBody = {
+        bankName: bankFormData.bankName,
+        accountNumber: bankFormData.accountNumber,
+        ifscCode: bankFormData.ifscCode,
+        location: bankFormData.location,
+        panNumber: bankFormData.panNumber,
+        aadharNumber: bankFormData.aadharNumber,
+      };
+      
+      console.log('[Finance Page] Sending update request:', requestBody);
+      
       const res = await fetch('/api/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          bankName: bankFormData.bankName,
-          accountNumber: bankFormData.accountNumber,
-          ifscCode: bankFormData.ifscCode,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await res.json();
@@ -185,9 +207,43 @@ export default function EmployeeFinancePage() {
       }
 
       toast.success('Bank details saved successfully');
-      setUser(data.user);
+      // Update user state with the response data
+      if (data.user) {
+        console.log('[Finance Page] Received user data:', {
+          location: data.user.location,
+          panNumber: data.user.panNumber,
+          aadharNumber: data.user.aadharNumber,
+        });
+        // Update user state - ensure all fields are included (preserve null values)
+        const updatedUser = {
+          ...data.user,
+          location: data.user.location !== undefined ? data.user.location : null,
+          panNumber: data.user.panNumber !== undefined ? data.user.panNumber : null,
+          aadharNumber: data.user.aadharNumber !== undefined ? data.user.aadharNumber : null,
+        };
+        console.log('[Finance Page] Setting user state:', {
+          location: updatedUser.location,
+          panNumber: updatedUser.panNumber,
+          aadharNumber: updatedUser.aadharNumber,
+        });
+        setUser(updatedUser);
+        // Also update form data to reflect saved values
+        setBankFormData({
+          bankName: data.user.bankName || '',
+          accountNumber: data.user.accountNumber || '',
+          ifscCode: data.user.ifscCode || '',
+          location: data.user.location || '',
+          panNumber: data.user.panNumber || '',
+          aadharNumber: data.user.aadharNumber || '',
+        });
+      }
       setShowBankForm(false);
       setBankLoading(false);
+      
+      // Force a re-fetch after a short delay to ensure we have the latest data from DB
+      setTimeout(async () => {
+        await fetchUserProfile();
+      }, 500);
     } catch (err: any) {
       toast.error(err.message || 'An error occurred');
       setBankLoading(false);
@@ -525,7 +581,7 @@ export default function EmployeeFinancePage() {
             </motion.div>
           </div>
 
-          {/* Bank Details Section */}
+          {/* Bank Details & Personal Information Section */}
           <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/50 p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
@@ -533,8 +589,8 @@ export default function EmployeeFinancePage() {
                   <CreditCard className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-primary font-bold text-gray-800">Bank Details</h2>
-                  <p className="text-xs text-gray-600 font-secondary">Manage your bank account information</p>
+                  <h2 className="text-lg font-primary font-bold text-gray-800">Bank Details & Personal Information</h2>
+                  <p className="text-xs text-gray-600 font-secondary">Manage your bank account and personal details</p>
                 </div>
               </div>
               {!showBankForm && (
@@ -591,6 +647,46 @@ export default function EmployeeFinancePage() {
                     />
                   </div>
                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5 font-secondary">
+                      Location
+                    </label>
+                    <input
+                      type="text"
+                      value={bankFormData.location}
+                      onChange={(e) => setBankFormData({ ...bankFormData, location: e.target.value })}
+                      placeholder="Enter location"
+                      className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary/50 outline-none font-secondary bg-white/80 backdrop-blur-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5 font-secondary">
+                      PAN No
+                    </label>
+                    <input
+                      type="text"
+                      value={bankFormData.panNumber}
+                      onChange={(e) => setBankFormData({ ...bankFormData, panNumber: e.target.value.toUpperCase() })}
+                      placeholder="Enter PAN number"
+                      maxLength={10}
+                      className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary/50 outline-none font-secondary bg-white/80 backdrop-blur-sm uppercase"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5 font-secondary">
+                      Aadhar No
+                    </label>
+                    <input
+                      type="text"
+                      value={bankFormData.aadharNumber}
+                      onChange={(e) => setBankFormData({ ...bankFormData, aadharNumber: e.target.value.replace(/\D/g, '') })}
+                      placeholder="Enter Aadhar number"
+                      maxLength={12}
+                      className="w-full px-3 py-2 text-sm text-gray-700 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary/50 outline-none font-secondary bg-white/80 backdrop-blur-sm"
+                    />
+                  </div>
+                </div>
                 <div className="flex gap-2 pt-2">
                   <button
                     type="submit"
@@ -617,6 +713,9 @@ export default function EmployeeFinancePage() {
                         bankName: user?.bankName || '',
                         accountNumber: user?.accountNumber || '',
                         ifscCode: user?.ifscCode || '',
+                        location: user?.location || '',
+                        panNumber: user?.panNumber || '',
+                        aadharNumber: user?.aadharNumber || '',
                       });
                     }}
                     className="flex items-center gap-2 px-4 py-2 border border-gray-300/50 text-gray-700 rounded-lg hover:bg-gray-50/80 transition-all font-secondary text-sm font-medium"
@@ -627,27 +726,52 @@ export default function EmployeeFinancePage() {
                 </div>
               </form>
             ) : user?.accountNumber ? (
-              <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="p-3 bg-gray-50/50 rounded-lg border border-gray-100">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <Building2 className="w-3.5 h-3.5 text-gray-600" />
-                    <span className="text-xs text-gray-500 font-secondary">Bank Name</span>
+              <div className="mt-3 space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="p-3 bg-gray-50/50 rounded-lg border border-gray-100">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-gray-600" />
+                      <span className="text-xs text-gray-500 font-secondary">Bank Name</span>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-900 font-secondary">{user.bankName || 'N/A'}</p>
                   </div>
-                  <p className="text-sm font-semibold text-gray-900 font-secondary">{user.bankName}</p>
+                  <div className="p-3 bg-gray-50/50 rounded-lg border border-gray-100">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <CreditCard className="w-3.5 h-3.5 text-gray-600" />
+                      <span className="text-xs text-gray-500 font-secondary">Account Number</span>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-900 font-secondary">{user.accountNumber || 'N/A'}</p>
+                  </div>
+                  <div className="p-3 bg-gray-50/50 rounded-lg border border-gray-100">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <FileText className="w-3.5 h-3.5 text-gray-600" />
+                      <span className="text-xs text-gray-500 font-secondary">IFSC Code</span>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-900 font-secondary">{user.ifscCode || 'N/A'}</p>
+                  </div>
                 </div>
-                <div className="p-3 bg-gray-50/50 rounded-lg border border-gray-100">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <CreditCard className="w-3.5 h-3.5 text-gray-600" />
-                    <span className="text-xs text-gray-500 font-secondary">Account Number</span>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="p-3 bg-gray-50/50 rounded-lg border border-gray-100">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-gray-600" />
+                      <span className="text-xs text-gray-500 font-secondary">Location</span>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-900 font-secondary">{user.location || 'N/A'}</p>
                   </div>
-                  <p className="text-sm font-semibold text-gray-900 font-secondary">{user.accountNumber}</p>
-                </div>
-                <div className="p-3 bg-gray-50/50 rounded-lg border border-gray-100">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <FileText className="w-3.5 h-3.5 text-gray-600" />
-                    <span className="text-xs text-gray-500 font-secondary">IFSC Code</span>
+                  <div className="p-3 bg-gray-50/50 rounded-lg border border-gray-100">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <FileText className="w-3.5 h-3.5 text-gray-600" />
+                      <span className="text-xs text-gray-500 font-secondary">PAN No</span>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-900 font-secondary">{user.panNumber || 'N/A'}</p>
                   </div>
-                  <p className="text-sm font-semibold text-gray-900 font-secondary">{user.ifscCode}</p>
+                  <div className="p-3 bg-gray-50/50 rounded-lg border border-gray-100">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <CreditCard className="w-3.5 h-3.5 text-gray-600" />
+                      <span className="text-xs text-gray-500 font-secondary">Aadhar No</span>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-900 font-secondary">{user.aadharNumber || 'N/A'}</p>
+                  </div>
                 </div>
               </div>
             ) : (

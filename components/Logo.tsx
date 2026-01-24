@@ -16,7 +16,7 @@ export default function Logo({ className = '', size = 'md' }: LogoProps) {
 
   return (
     <Image
-      src="./assets/maverix-logo.png"
+      src="/assets/maverix-logo.png"
       alt="MaveriX Logo"
       width={currentSize.width}
       height={currentSize.height}

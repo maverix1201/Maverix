@@ -333,8 +333,8 @@ export default function TimeTrackingWidget() {
   // Get calendar days
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
-  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
-  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 }); // Monday start
+  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 }); // Monday start
   const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));

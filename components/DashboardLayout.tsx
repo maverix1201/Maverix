@@ -41,7 +41,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
-  
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -76,7 +76,7 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
   // Verify that the user's role matches the expected role
   useEffect(() => {
     if (!mounted || !router) return; // Wait for client-side mount and ensure router is available
-    
+
     if (status === 'loading') return; // Still loading session
 
     if (status === 'unauthenticated') {
@@ -320,13 +320,13 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
       {/* Main content */}
       <div className="lg:pl-56">
 
-        {/* Mobile Bottom Navigation Bar - Glass Effect */}
+        {/* Mobile Bottom Navigation Bar - Glassmorphism */}
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40">
-          <div className="bg-primary/80 border border-t border-primary backdrop-blur-lg shadow-xl py-3 pb-6 px-2">
+          <div className="mx-0 mb-0 bg-[#dedeff]/40 backdrop-blur-md border border-white shadow-[0_8px_32px_rgba(0,0,0,0.12)] pb-[env(safe-area-inset-bottom,0px)]">
             <div className="overflow-x-auto scrollbar-hide">
-              <div className="flex items-center gap-1 px-2 py-1.5 min-w-max justify-center">
+              <div className="flex items-center gap-1 px-2 py-1 min-w-max justify-center">
                 {menu
-                  .filter((item) => item.name !== 'Profile') // Exclude Profile from menu items
+                  .filter((item) => item.name !== 'Profile')
                   .map((item) => {
                     const Icon = item.icon;
                     const isActive = mounted && pathname === item.href;
@@ -334,37 +334,43 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
                       <Link
                         key={item.name}
                         href={item.href}
-                        className={`flex items-center justify-center px-4 py-3 rounded-xl transition-all ${isActive
-                          ? 'bg-primary/40 text-white'
-                          : 'text-gray-400 hover:bg-primary/10'
-                          }`}
+                        className="flex items-center justify-center p-1 relative"
                       >
-                        <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-gray-400'}`} />
+                        <div className={`flex items-center justify-center w-11 h-11 rounded-2xl transition-all duration-300 ${isActive
+                            ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-105'
+                            : 'text-gray-500 hover:bg-white/80 hover:text-gray-700 hover:shadow-md'
+                          }`}>
+                          <Icon className="w-5 h-5" strokeWidth={isActive ? 2.2 : 1.8} />
+                        </div>
                       </Link>
                     );
                   })}
 
-                {/* User Profile Picture */}
+                {/* User Profile */}
                 <Link
                   href={`/${role}/profile`}
-                  className={`flex items-center justify-center px-3 py-2 rounded-xl transition-all ${mounted && pathname === `/${role}/profile`
-                    ? 'bg-primary/10'
-                    : ''
-                    }`}
+                  className="flex items-center justify-center p-2.5"
                 >
-                  <UserAvatar
-                    name={userName}
-                    image={userImage}
-                    size="sm"
-                  />
+                  <div className={`flex items-center justify-center w-11 h-11 rounded-2xl transition-all duration-300 ${mounted && pathname === `/${role}/profile`
+                      ? 'ring-2 ring-primary ring-offset-2 shadow-lg scale-105'
+                      : 'hover:shadow-md'
+                    }`}>
+                    <UserAvatar
+                      name={userName}
+                      image={userImage}
+                      size="sm"
+                    />
+                  </div>
                 </Link>
 
                 {/* Logout Button */}
                 <button
                   onClick={handleLogout}
-                  className="flex items-center justify-center px-4 py-3 rounded-xl transition-all text-red-600 hover:bg-red-50/50"
+                  className="flex items-center justify-center p-2.5"
                 >
-                  <IconLogout className="w-5 h-5" />
+                  <div className="flex items-center justify-center w-11 h-11 rounded-2xl text-red-500 hover:bg-red-50/80 hover:shadow-md transition-all duration-300">
+                    <IconLogout className="w-5 h-5" strokeWidth={1.8} />
+                  </div>
                 </button>
               </div>
             </div>

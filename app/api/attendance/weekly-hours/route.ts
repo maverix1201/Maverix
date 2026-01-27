@@ -47,15 +47,13 @@ export async function GET(request: NextRequest) {
       weeklyHours: Math.round(totalHours * 10) / 10, // Round to 1 decimal place
       daysWorked: attendanceRecords.length,
     });
-    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-    response.headers.set('Pragma', 'no-cache');
-    response.headers.set('Expires', '0');
-    response.headers.set('Surrogate-Control', 'no-store');
+    // User-specific weekly data - cache for 1 minute
+    response.headers.set('Cache-Control', 'private, s-maxage=60, stale-while-revalidate=120');
     return response;
   } catch (error: any) {
     console.error('Get weekly hours error:', error);
     const errorResponse = NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
-    errorResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    errorResponse.headers.set('Cache-Control', 'no-store');
     return errorResponse;
   }
 }

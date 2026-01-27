@@ -87,10 +87,8 @@ export async function GET(request: NextRequest) {
     const result = getAllBirthdays ? upcomingBirthdays : upcomingBirthdays.slice(0, 10);
 
     const response = NextResponse.json({ birthdays: result });
-    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-    response.headers.set('Pragma', 'no-cache');
-    response.headers.set('Expires', '0');
-    response.headers.set('Surrogate-Control', 'no-store');
+    // Birthdays change daily - cache for 5 minutes with revalidation
+    response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
     return response;
   } catch (error: any) {
     console.error('Get upcoming birthdays error:', error);

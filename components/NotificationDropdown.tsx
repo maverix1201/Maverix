@@ -70,7 +70,7 @@ export default function NotificationDropdown({ onClose }: NotificationDropdownPr
   const fetchNotifications = async () => {
     try {
       // Always fetch 10 most recent notifications (not dismissed)
-      const res = await fetch(`/api/notifications?limit=10&includeDismissed=false&t=${Date.now()}`);
+      const res = await fetch('/api/notifications?limit=10&includeDismissed=false');
       const data = await res.json();
       if (res.ok) {
         // Ensure we only show 10 notifications

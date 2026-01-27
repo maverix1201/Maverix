@@ -79,12 +79,7 @@ export default function AnnouncementManagement() {
   const fetchAnnouncements = useCallback(async () => {
     try {
       setFetching(true);
-      const res = await fetch(`/api/announcements?t=${Date.now()}`, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache',
-        },
-      });
+      const res = await fetch('/api/announcements');
       const data = await res.json();
       if (res.ok) {
         setAnnouncements(data.announcements || []);

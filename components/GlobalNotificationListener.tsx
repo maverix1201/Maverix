@@ -80,11 +80,10 @@ export default function GlobalNotificationListener() {
     // Function to check for new notifications and show them
     const checkAndShowNotifications = async () => {
       try {
-        // Build query with timestamp to check for new notifications
+        // Build query to check for new notifications
         const queryParams = new URLSearchParams({
           limit: '5',
           includeDismissed: 'false',
-          t: Date.now().toString(),
         });
         
         // If we have a last checked time, only get newer notifications
@@ -92,10 +91,7 @@ export default function GlobalNotificationListener() {
           queryParams.set('since', lastCheckedAtRef.current);
         }
 
-        const res = await fetch(`/api/notifications?${queryParams}`, {
-          cache: 'no-store',
-          headers: { 'Cache-Control': 'no-cache' },
-        });
+        const res = await fetch(`/api/notifications?${queryParams}`);
         const data = await res.json();
 
         if (res.ok && data.notifications && data.notifications.length > 0) {

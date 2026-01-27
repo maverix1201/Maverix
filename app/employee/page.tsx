@@ -74,13 +74,13 @@ export default function EmployeeDashboard() {
   const fetchStats = useCallback(async () => {
     try {
       setLoading(true);
-      const timestamp = Date.now();
+      // Removed cache busting - APIs now have proper cache headers
       const [leavesRes, leaveTypesRes, teamsRes, weeklyHoursRes, attendanceRes] = await Promise.all([
-        fetch(`/api/leave?t=${timestamp}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } }),
-        fetch(`/api/leave/allotted-types?t=${timestamp}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } }),
-        fetch(`/api/teams/my-team?t=${timestamp}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } }),
-        fetch(`/api/attendance/weekly-hours?t=${timestamp}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } }),
-        fetch(`/api/attendance/stats?t=${timestamp}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } }),
+        fetch('/api/leave'),
+        fetch('/api/leave/allotted-types'),
+        fetch('/api/teams/my-team'),
+        fetch('/api/attendance/weekly-hours'),
+        fetch('/api/attendance/stats'),
       ]);
 
       const leaves = await leavesRes.json();
@@ -116,7 +116,7 @@ export default function EmployeeDashboard() {
     try {
       // Don't include profileImage in initial fetch to prevent slow dashboard loads
       // ProfileImage will be loaded from session or fetched separately if needed
-      const res = await fetch(`/api/profile?t=${Date.now()}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
+      const res = await fetch('/api/profile');
       const data = await res.json();
       if (res.ok && data.user) {
         setUserProfile(data.user);
@@ -156,7 +156,7 @@ export default function EmployeeDashboard() {
       }
 
       // If not in session, fetch it from API
-      const res = await fetch(`/api/profile/image?t=${Date.now()}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
+      const res = await fetch('/api/profile/image');
       const data = await res.json();
       if (res.ok && data.profileImage) {
         setProfileImage(data.profileImage);
@@ -168,7 +168,7 @@ export default function EmployeeDashboard() {
 
   const fetchAnnouncements = async () => {
     try {
-      const res = await fetch(`/api/announcements?t=${Date.now()}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
+      const res = await fetch('/api/announcements');
       const data = await res.json();
       if (res.ok && data.announcements && data.announcements.length > 0) {
         setAnnouncements(data.announcements);
@@ -183,7 +183,7 @@ export default function EmployeeDashboard() {
   const fetchActiveAnnouncements = useCallback(async (isInitialLoad = false) => {
     try {
       // Use a query parameter to get all announcements including future ones
-      const res = await fetch(`/api/announcements?all=true&t=${Date.now()}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
+      const res = await fetch('/api/announcements?all=true');
       const data = await res.json();
       
       if (res.ok && data.announcements) {
@@ -235,7 +235,7 @@ export default function EmployeeDashboard() {
     // If no active announcements, fetch them first
     if (activeAnnouncements.length === 0) {
       // Fetch announcements and get the result
-      const res = await fetch(`/api/announcements?all=true&t=${Date.now()}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
+      const res = await fetch('/api/announcements?all=true');
       const data = await res.json();
       
       if (res.ok && data.announcements) {
@@ -335,7 +335,7 @@ export default function EmployeeDashboard() {
   // Fetch unread notification count
   const fetchUnreadNotificationCount = async () => {
     try {
-      const res = await fetch(`/api/notifications?limit=10&includeDismissed=false&t=${Date.now()}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
+      const res = await fetch('/api/notifications?limit=10&includeDismissed=false');
       const data = await res.json();
       if (res.ok) {
         const unread = data.notifications?.filter((n: any) => !n.read).length || 0;

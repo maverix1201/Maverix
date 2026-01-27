@@ -101,9 +101,8 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
     try {
       // For admin and HR, fetch all leaves (including allotted leaves) using ?all=true
       // This ensures the "Allot Leave" tab shows all allotted leaves
-      const timestamp = Date.now();
-      const url = role === 'admin' || role === 'hr' ? `/api/leave?all=true&t=${timestamp}` : `/api/leave?t=${timestamp}`;
-      const res = await fetch(url, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
+      const url = role === 'admin' || role === 'hr' ? '/api/leave?all=true' : '/api/leave';
+      const res = await fetch(url);
       const data = await res.json();
       console.log('[LeaveManagementTabs] Fetched leaves:', data.leaves?.length || 0);
       if (data.leaves && data.leaves.length > 0) {
@@ -135,7 +134,7 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
 
   const fetchEmployees = useCallback(async () => {
     try {
-      const res = await fetch(`/api/users?minimal=true&t=${Date.now()}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
+      const res = await fetch('/api/users?minimal=true');
       const data = await res.json();
       const currentUserId = (session?.user as any)?.id;
       // Include both employees and HR users (exclude only admin)

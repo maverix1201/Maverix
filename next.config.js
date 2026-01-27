@@ -20,27 +20,26 @@ const nextConfig = {
     ],
     unoptimized: false,
   },
-  // Disable caching for all routes
+  // Optimized caching headers - APIs will set their own cache control
   async headers() {
     return [
       {
-        source: '/api/:path*',
+        // Static assets - long cache
+        source: '/assets/:path*',
         headers: [
           {
             key: 'Cache-Control',
-            value: 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+            value: 'public, max-age=31536000, immutable',
           },
+        ],
+      },
+      {
+        // Images - cache with revalidation
+        source: '/uploads/:path*',
+        headers: [
           {
-            key: 'Pragma',
-            value: 'no-cache',
-          },
-          {
-            key: 'Expires',
-            value: '0',
-          },
-          {
-            key: 'Surrogate-Control',
-            value: 'no-store',
+            key: 'Cache-Control',
+            value: 'public, max-age=86400, stale-while-revalidate=604800',
           },
         ],
       },

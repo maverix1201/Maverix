@@ -28,12 +28,7 @@ export default function UpcomingBirthdays() {
     try {
       setLoading(true);
       const allParam = fetchAll ? '&all=true' : '';
-      const res = await fetch(`/api/employees/upcoming-birthdays?t=${Date.now()}${allParam}`, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache',
-        },
-      });
+      const res = await fetch(`/api/employees/upcoming-birthdays${allParam}`);
       const data = await res.json();
 
       if (res.ok) {

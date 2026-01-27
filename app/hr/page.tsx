@@ -122,12 +122,7 @@ export default function HRDashboard() {
   const fetchStats = async (showSpinner: boolean) => {
     try {
       if (showSpinner) setLoading(true);
-      const res = await fetch(`/api/hr/stats?t=${Date.now()}`, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache',
-        },
-      });
+      const res = await fetch('/api/hr/stats');
       const data = await res.json();
       setStats({
         totalEmployees: data.totalEmployees || 0,
@@ -148,12 +143,7 @@ export default function HRDashboard() {
   const fetchRecentTeams = async (showSpinner: boolean) => {
     try {
       if (showSpinner) setTeamsLoading(true);
-      const res = await fetch(`/api/teams/recent?t=${Date.now()}`, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache',
-        },
-      });
+      const res = await fetch('/api/teams/recent');
       const data = await res.json();
       if (res.ok) {
         setRecentTeams(data.teams || []);

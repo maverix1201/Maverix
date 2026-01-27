@@ -43,10 +43,8 @@ export async function GET(request: NextRequest) {
       // If 'all=true' is requested, return all announcements (including future) for button visibility check
       if (getAll) {
         const response = NextResponse.json({ announcements });
-        response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-        response.headers.set('Pragma', 'no-cache');
-        response.headers.set('Expires', '0');
-        response.headers.set('Surrogate-Control', 'no-store');
+        // Short cache for 'all' check - 30 seconds
+        response.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60');
         return response;
       }
       
@@ -68,24 +66,20 @@ export async function GET(request: NextRequest) {
       });
 
       const response = NextResponse.json({ announcements: filteredAnnouncements });
-      response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-      response.headers.set('Pragma', 'no-cache');
-      response.headers.set('Expires', '0');
-      response.headers.set('Surrogate-Control', 'no-store');
+      // User-specific announcements - private cache for 2 minutes
+      response.headers.set('Cache-Control', `private, s-maxage=120, stale-while-revalidate=300`);
       return response;
     }
 
     // For admin/hr, return all announcements
     const response = NextResponse.json({ announcements });
-    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-    response.headers.set('Pragma', 'no-cache');
-    response.headers.set('Expires', '0');
-    response.headers.set('Surrogate-Control', 'no-store');
+    // Admin view - cache for 2 minutes
+    response.headers.set('Cache-Control', 'private, s-maxage=120, stale-while-revalidate=300');
     return response;
   } catch (error: any) {
     console.error('Get announcements error:', error);
     const errorResponse = NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
-    errorResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    errorResponse.headers.set('Cache-Control', 'no-store');
     return errorResponse;
   }
 }

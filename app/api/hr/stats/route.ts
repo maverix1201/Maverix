@@ -100,15 +100,13 @@ export async function GET() {
       onLeaveToday: onLeaveCount,
       weeklyOffToday: weeklyOffCount,
     });
-    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-    response.headers.set('Pragma', 'no-cache');
-    response.headers.set('Expires', '0');
-    response.headers.set('Surrogate-Control', 'no-store');
+    // Stats can tolerate slight staleness - cache for 30 seconds
+    response.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60');
     return response;
   } catch (error) {
     console.error('Error fetching HR stats:', error);
     const errorResponse = NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-    errorResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    errorResponse.headers.set('Cache-Control', 'no-store');
     return errorResponse;
   }
 }

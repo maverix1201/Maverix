@@ -36,15 +36,13 @@ export async function GET(request: NextRequest) {
       .sort({ createdAt: -1 });
 
     const response = NextResponse.json({ teams });
-    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
-    response.headers.set('Pragma', 'no-cache');
-    response.headers.set('Expires', '0');
-    response.headers.set('Surrogate-Control', 'no-store');
+    // Teams change rarely - cache for 5 minutes
+    response.headers.set('Cache-Control', 'private, s-maxage=300, stale-while-revalidate=600');
     return response;
   } catch (error: any) {
     console.error('Get my teams error:', error);
     const errorResponse = NextResponse.json({ error: error.message || 'Server error' }, { status: 500 });
-    errorResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    errorResponse.headers.set('Cache-Control', 'no-store');
     return errorResponse;
   }
 }

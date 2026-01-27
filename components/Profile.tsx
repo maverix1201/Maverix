@@ -112,11 +112,6 @@ export default function Profile() {
       const compressedFile = blobToFile(compressedBlob, file.name, 'image/jpeg');
       const compressedSizeKB = getFileSizeKB(compressedFile);
       
-      // Show compression info in console (optional)
-      if (originalSizeKB > compressedSizeKB) {
-        console.log(`Image compressed from ${originalSizeKB}KB to ${compressedSizeKB}KB`);
-      }
-
       // Show preview of compressed image
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -199,9 +194,6 @@ export default function Profile() {
         dateOfBirth: formData.dateOfBirth && formData.dateOfBirth.trim() !== '' ? formData.dateOfBirth : null,
         joiningYear: formData.joiningYear && formData.joiningYear.trim() !== '' ? parseInt(formData.joiningYear) : null,
       };
-
-      console.log('[Profile Component] Sending update data:', updateData);
-      console.log('[Profile Component] joiningYear value:', updateData.joiningYear, 'Type:', typeof updateData.joiningYear);
 
       if (formData.currentPassword && formData.newPassword) {
         updateData.currentPassword = formData.currentPassword;

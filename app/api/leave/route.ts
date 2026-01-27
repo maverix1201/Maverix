@@ -331,11 +331,6 @@ export async function POST(request: NextRequest) {
       ...(medicalReport && { medicalReport }), // Include medicalReport if provided
     };
     
-    // Log medical report for debugging
-    if (medicalReport) {
-      console.log('[Leave API] Medical report received:', medicalReport);
-    }
-    
     // For shortday leave types, store hours and minutes
     if (isShortDayLeaveType && isShortDay) {
       leaveData.hours = calculatedHours;
@@ -346,10 +341,6 @@ export async function POST(request: NextRequest) {
 
     await leave.save();
     
-    // Log saved medical report for debugging
-    if (leave.medicalReport) {
-      console.log('[Leave API] Medical report saved successfully:', leave.medicalReport);
-    }
     await leave.populate('userId', 'name email profileImage');
     await leave.populate('leaveType', 'name description');
 
@@ -391,36 +382,6 @@ export async function POST(request: NextRequest) {
               hours: isShortDayLeaveType ? ((leave as any).hours || 0) : undefined, // Include hours for shortday leaves
               minutes: isShortDayLeaveType ? ((leave as any).minutes || 0) : undefined, // Include minutes for shortday leaves
             });
-
-            // Send push notifications to all admin and HR users
-            try {
-              const { sendPushNotificationToUsers } = await import('@/lib/pushNotificationManager');
-              const employeeName = (user.name as string) || 'An employee';
-              const daysText = leave.days === 0.5 
-                ? '0.5-day' 
-                : leave.days < 1 
-                ? `${leave.days.toFixed(2)}-day` 
-                : `${leave.days}-day`;
-              const startDate = format(new Date(leave.startDate), 'MMM dd, yyyy');
-              const endDate = format(new Date(leave.endDate), 'MMM dd, yyyy');
-              const dateText = startDate === endDate ? startDate : `${startDate} - ${endDate}`;
-              
-              await sendPushNotificationToUsers(adminAndHRIds, {
-                title: 'New Leave Request',
-                body: `${employeeName} requested ${daysText} leave for ${dateText}`,
-                icon: '/assets/maverixicon.png',
-                badge: '/assets/maverixicon.png',
-                tag: `leave-request-${leave._id}`,
-                data: {
-                  leaveId: (leave._id as mongoose.Types.ObjectId).toString(),
-                  type: 'leave_request',
-                  url: '/hr/leave-request',
-                },
-              });
-            } catch (pushError) {
-              // Log but don't fail - push notifications are non-critical
-              console.error('Error sending push notification for leave request:', pushError);
-            }
           }
         }
       } catch (emailError) {

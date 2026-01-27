@@ -78,13 +78,6 @@ export async function PATCH(
 
       case 'clearance':
         // Update individual department clearance
-        console.log('=== UPDATING CLEARANCE ===');
-        console.log('Department:', department);
-        console.log('Status:', stepStatus);
-        console.log('Notes:', notes);
-        console.log('User ID:', userId);
-        console.log('Current clearances before update:', JSON.stringify(resignation.clearances, null, 2));
-        
         if (department && ['design', 'operation'].includes(department)) {
           // Initialize clearances if it doesn't exist
           if (!resignation.clearances) {
@@ -111,10 +104,6 @@ export async function PATCH(
           // Also mark as modified explicitly
           resignation.markModified('clearances');
           resignation.markModified(`clearances.${department}`);
-          
-          console.log('Clearances after update (before save):', JSON.stringify(resignation.clearances, null, 2));
-          console.log('Is clearances modified?', resignation.isModified('clearances'));
-          console.log(`Is clearances.${department} modified?`, resignation.isModified(`clearances.${department}`));
         } else {
           return NextResponse.json(
             { error: 'Invalid department' },
@@ -196,20 +185,8 @@ export async function PATCH(
           { status: 400 }
         );
     }
-
-    console.log('=== BEFORE SAVE ===');
-    console.log('Field being updated:', field);
-    if (field === 'clearance') {
-      console.log('Clearances object:', JSON.stringify(resignation.clearances, null, 2));
-      console.log('Is clearances modified?', resignation.isModified('clearances'));
-    }
     
     await resignation.save({ validateBeforeSave: true });
-    
-    console.log('=== AFTER SAVE ===');
-    if (field === 'clearance') {
-      console.log('Clearances after save:', JSON.stringify(resignation.clearances, null, 2));
-    }
     
     // Reload the document to ensure we have the latest data
     const updatedResignation = await Resignation.findById(params.id)
@@ -217,10 +194,6 @@ export async function PATCH(
       .populate('approvedBy', 'name email')
       .populate('exitClosedBy', 'name email')
       .lean();
-    
-    if (field === 'clearance') {
-      console.log('Clearances from reloaded document:', JSON.stringify((updatedResignation as any)?.clearances, null, 2));
-    }
 
     return NextResponse.json(
       { message: 'Exit process updated successfully', resignation: updatedResignation },

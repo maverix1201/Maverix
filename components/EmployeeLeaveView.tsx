@@ -287,10 +287,6 @@ export default function EmployeeLeaveView({ initialLeaves, onLeavesUpdated }: Em
         ...(medicalReportUrl && { medicalReport: medicalReportUrl }),
       };
       
-      // Log request body for debugging
-      if (medicalReportUrl) {
-        console.log('[EmployeeLeaveView] Sending leave request with medical report:', medicalReportUrl);
-      }
 
       const res = await fetch('/api/leave', {
         method: 'POST',

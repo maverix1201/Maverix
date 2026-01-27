@@ -109,12 +109,7 @@ export async function POST(request: NextRequest) {
         // Check if user clocked in late and create penalty if exceeded max days
         // Use the shared penalty utility to handle all checks and penalty creation
         try {
-          const penaltyResult = await checkAndCreatePenalty(userId, clockInTime);
-          if (penaltyResult.shouldCreatePenalty) {
-            console.log(`[Attendance] Penalty created for user ${userId}: ${penaltyResult.message}`);
-          } else {
-            console.log(`[Attendance] No penalty needed: ${penaltyResult.message}`);
-          }
+          await checkAndCreatePenalty(userId, clockInTime);
         } catch (penaltyError: any) {
           // Log error but don't fail the clock-in
           console.error('Error processing penalty:', penaltyError);

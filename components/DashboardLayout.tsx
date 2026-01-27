@@ -29,10 +29,6 @@ const ProfileCompletionBanner = dynamic(() => import('./ProfileCompletionBanner'
   loading: () => null,
 });
 
-const InAppNotificationToast = dynamic(() => import('./InAppNotificationToast'), {
-  ssr: false,
-  loading: () => null,
-});
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -384,9 +380,6 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
 
         {/* Profile Completion Banner */}
         <ProfileCompletionBanner />
-
-        {/* In-App Notification Toast (for iOS/HTTP fallback) */}
-        <InAppNotificationToast />
 
         {/* Page content */}
         <main className="bg-[#eef3ff] p-3 pb-16 lg:pb-4">{children}</main>

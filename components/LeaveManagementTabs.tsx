@@ -104,18 +104,6 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
       const url = role === 'admin' || role === 'hr' ? '/api/leave?all=true' : '/api/leave';
       const res = await fetch(url);
       const data = await res.json();
-      console.log('[LeaveManagementTabs] Fetched leaves:', data.leaves?.length || 0);
-      if (data.leaves && data.leaves.length > 0) {
-        // Log first few leaves to see structure
-        console.log('[LeaveManagementTabs] Sample leaves:', data.leaves.slice(0, 3).map((l: any) => ({
-          _id: l._id,
-          userId: l.userId?._id || l.userId,
-          leaveType: typeof l.leaveType === 'object' ? l.leaveType?.name : l.leaveType,
-          allottedBy: l.allottedBy ? (typeof l.allottedBy === 'object' ? l.allottedBy?._id || 'object' : l.allottedBy) : null,
-          status: l.status,
-          reason: l.reason?.substring(0, 50)
-        })));
-      }
       setLeaves(data.leaves || []);
     } catch (err) {
       console.error('Error fetching leaves:', err);
@@ -610,7 +598,6 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
       return true;
     });
     
-    console.log('[LeaveManagementTabs] Leave Requests filtered:', filtered.length, 'from', leaves.length);
     return filtered;
   }, [leaves, role, session, employees]);
 
@@ -623,16 +610,6 @@ export default function LeaveManagementTabs({ initialLeaves, role }: LeaveManage
       // allottedBy can be: undefined, null, ObjectId string, or populated object {_id, name, ...}
       return leave.allottedBy !== undefined && leave.allottedBy !== null;
     });
-    
-    console.log('[LeaveManagementTabs] Allotted Leaves filtered:', filtered.length, 'from', leaves.length);
-    if (filtered.length > 0) {
-      console.log('[LeaveManagementTabs] Sample allotted leaves:', filtered.slice(0, 3).map((l: any) => ({
-        _id: l._id,
-        userId: l.userId?._id || l.userId,
-        leaveType: typeof l.leaveType === 'object' ? l.leaveType?.name : l.leaveType,
-        allottedBy: l.allottedBy ? (typeof l.allottedBy === 'object' ? l.allottedBy?._id || 'object' : l.allottedBy) : null,
-      })));
-    }
     
     return filtered;
   }, [leaves]);

@@ -117,31 +117,6 @@ export async function POST(request: NextRequest) {
       strictPopulate: false,
     });
 
-    // Create notifications for mentioned users
-    if (mentionUserIds.length > 0) {
-      try {
-        const { createNotification } = await import('@/lib/notificationManager');
-        const mentionedBy = await User.findById(userId).select('name').lean();
-        
-        for (const mentionedUserId of mentionUserIds) {
-          // Don't notify if user mentioned themselves
-          if (mentionedUserId === userId) continue;
-          
-          await createNotification({
-            userId: mentionedUserId,
-            type: 'mention',
-            title: 'You were mentioned',
-            message: `${mentionedBy?.name || 'Someone'} mentioned you in a post`,
-            feedId: (feed._id as mongoose.Types.ObjectId).toString(),
-            mentionedBy: userId.toString(),
-          });
-        }
-      } catch (notificationError) {
-        // Log error but don't fail the feed creation
-        console.error('Error creating mention notifications:', notificationError);
-      }
-    }
-
     return NextResponse.json({
       message: 'Post created successfully',
       post: feed,

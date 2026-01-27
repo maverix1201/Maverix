@@ -136,14 +136,6 @@ export default function ResignationForm({ onClose, onSuccess }: ResignationFormP
         clearancesAcknowledged: formData.clearancesAcknowledged,
       };
       
-      console.log('=== SUBMITTING RESIGNATION FORM ===');
-      console.log('Form data:', formData);
-      console.log('Payload:', payload);
-      console.log('Notice period dates:', {
-        start: payload.noticePeriodStartDate,
-        end: payload.noticePeriodEndDate,
-      });
-
       const res = await fetch('/api/resignation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

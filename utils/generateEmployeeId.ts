@@ -41,7 +41,6 @@ export function extractEmployeeIdSequence(empId?: string | null): number | null 
  */
 export async function shouldGenerateEmployeeId(userId: string, joiningYear: number | null | undefined): Promise<boolean> {
   if (!joiningYear) {
-    console.log('[shouldGenerateEmployeeId] No joining year provided, skipping');
     return false;
   }
 
@@ -49,21 +48,13 @@ export async function shouldGenerateEmployeeId(userId: string, joiningYear: numb
     const User = (await import('@/models/User')).default;
     const user = await User.findById(userId).select('empId').lean();
     
-    console.log('[shouldGenerateEmployeeId] User data:', {
-      userId,
-      currentEmpId: user?.empId,
-      newJoiningYear: joiningYear
-    });
-    
     // Generate if user doesn't have an empId yet
     if (!user?.empId) {
-      console.log('[shouldGenerateEmployeeId] No empId exists, will generate');
       return true;
     }
 
     // If empId exists, do not generate a new global sequence here.
     // (Prefix updates for year changes should keep the existing sequence number.)
-    console.log('[shouldGenerateEmployeeId] EmpId exists, no generation needed');
     return false;
   } catch (error) {
     console.error('[shouldGenerateEmployeeId] Error checking if empId should be generated:', error);

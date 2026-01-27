@@ -162,11 +162,7 @@ const UserSchema: Schema = new Schema(
           }
           // Validate HH:mm format
           const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
-          const isValid = timeRegex.test(value);
-          if (!isValid) {
-            console.log('[User Model] Validation failed for clockInTime:', value, 'Type:', typeof v);
-          }
-          return isValid;
+          return timeRegex.test(value);
         },
         message: 'Clock-in time must be in HH:mm format (e.g., 09:30) or "N/R" for no restrictions',
       },

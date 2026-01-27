@@ -105,24 +105,12 @@ export default function EmployeeResignationPage() {
       const data = await res.json();
 
       if (res.ok) {
-        console.log('=== FETCHED RESIGNATIONS ===');
-        console.log('All resignations:', data.resignations);
-        data.resignations?.forEach((r: any) => {
-          console.log(`Resignation ${r._id}:`);
-          console.log('  - Assets:', r.assets);
-          console.log('  - Assets type:', typeof r.assets);
-          console.log('  - Assets is array:', Array.isArray(r.assets));
-          console.log('  - Assets length:', r.assets?.length);
-          console.log('  - Full resignation:', r);
-        });
-
         // Ensure assets are arrays for all resignations
         const processedResignations = (data.resignations || []).map((r: any) => ({
           ...r,
           assets: Array.isArray(r.assets) ? r.assets : (r.assets ? [r.assets] : []),
         }));
 
-        console.log('Processed resignations:', processedResignations);
         setResignations(processedResignations);
       } else {
         toast.error(data.error || 'Failed to fetch resignations');
@@ -166,17 +154,6 @@ export default function EmployeeResignationPage() {
         assets: assetsToSend,
       };
 
-      console.log('=== SUBMITTING RESIGNATION ===');
-      console.log('Form data:', formData);
-      console.log('Form data assets:', formData.assets);
-      console.log('Form data assets type:', typeof formData.assets);
-      console.log('Form data assets is array:', Array.isArray(formData.assets));
-      console.log('Form data assets length:', formData.assets?.length);
-      console.log('Assets to send:', assetsToSend);
-      console.log('Assets to send length:', assetsToSend.length);
-      console.log('Full payload:', payload);
-      console.log('Payload JSON:', JSON.stringify(payload));
-
       const res = await fetch('/api/resignation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -184,12 +161,6 @@ export default function EmployeeResignationPage() {
       });
 
       const data = await res.json();
-      console.log('=== API RESPONSE ===');
-      console.log('Full response:', data);
-      console.log('Resignation object:', data.resignation);
-      console.log('Assets in response:', data.resignation?.assets);
-      console.log('Assets type:', typeof data.resignation?.assets);
-      console.log('Assets is array:', Array.isArray(data.resignation?.assets));
 
       if (res.ok) {
         toast.success('Resignation submitted successfully');
@@ -567,14 +538,12 @@ export default function EmployeeResignationPage() {
                           </div>
                           {(() => {
                             const assets = resignation.assets;
-                            console.log('Rendering assets for resignation:', resignation._id, 'Assets:', assets, 'Type:', typeof assets, 'Is array:', Array.isArray(assets));
 
                             if (assets && Array.isArray(assets) && assets.length > 0) {
                               return (
                                 <div className="flex flex-wrap gap-1.5 ml-5">
                                   {assets.map((asset: string) => {
                                     const assetInfo = companyAssets.find((a) => a.id === asset);
-                                    console.log('Looking for asset:', asset, 'Found:', assetInfo);
                                     return assetInfo ? (
                                       <span
                                         key={asset}

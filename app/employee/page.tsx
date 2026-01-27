@@ -12,8 +12,7 @@ const UpcomingBirthdays = dynamic(() => import('@/components/UpcomingBirthdays')
 const EmployeeProfileCard = dynamic(() => import('@/components/EmployeeProfileCard'), { ssr: false });
 const BirthdayCelebration = dynamic(() => import('@/components/BirthdayCelebration'), { ssr: false });
 const AnnouncementModal = dynamic(() => import('@/components/AnnouncementModal'), { ssr: false });
-const NotificationDropdown = dynamic(() => import('@/components/NotificationDropdown'), { ssr: false });
-import { Clock, Calendar, Users, TrendingUp, Megaphone, Bell } from 'lucide-react';
+import { Clock, Calendar, Users, TrendingUp, Megaphone } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/contexts/ToastContext';
 import UserAvatar from '@/components/UserAvatar';
@@ -43,8 +42,6 @@ export default function EmployeeDashboard() {
   const [hasNewAnnouncement, setHasNewAnnouncement] = useState(false);
   const [lastAnnouncementId, setLastAnnouncementId] = useState<string | null>(null);
   const [greeting, setGreeting] = useState('🌟 Welcome');
-  const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
-  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   // Function to get time-based greeting
   const getGreeting = () => {
@@ -298,7 +295,6 @@ export default function EmployeeDashboard() {
       if (document.visibilityState === 'visible' && session) {
         fetchStats();
         fetchActiveAnnouncements(false);
-        fetchUnreadNotificationCount();
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -308,7 +304,6 @@ export default function EmployeeDashboard() {
       if (session) {
         fetchStats();
         fetchActiveAnnouncements(false);
-        fetchUnreadNotificationCount();
       }
     };
     window.addEventListener('focus', handleFocus);
@@ -326,32 +321,10 @@ export default function EmployeeDashboard() {
     const interval = setInterval(() => {
       if (document.visibilityState !== 'visible') return;
       fetchActiveAnnouncements(false); // Check for updates
-      fetchUnreadNotificationCount(); // Check for new notifications
     }, 30000); // Check periodically; immediate updates via events/push where possible
 
     return () => clearInterval(interval);
   }, [session, lastAnnouncementId, fetchActiveAnnouncements]);
-
-  // Fetch unread notification count
-  const fetchUnreadNotificationCount = async () => {
-    try {
-      const res = await fetch('/api/notifications?limit=10&includeDismissed=false');
-      const data = await res.json();
-      if (res.ok) {
-        const unread = data.notifications?.filter((n: any) => !n.read).length || 0;
-        setUnreadNotificationCount(unread);
-      }
-    } catch (err) {
-      console.error('Error fetching notification count:', err);
-    }
-  };
-
-  // Initial fetch of notification count
-  useEffect(() => {
-    if (session) {
-      fetchUnreadNotificationCount();
-    }
-  }, [session]);
 
   return (
     <DashboardLayout role="employee">
@@ -429,45 +402,6 @@ export default function EmployeeDashboard() {
                   )}
                 </motion.button>
               )}
-              
-              {/* Notification Button */}
-              <div className="relative">
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    setShowNotificationDropdown(!showNotificationDropdown);
-                    fetchUnreadNotificationCount();
-                  }}
-                  className="relative flex items-center justify-center w-10 h-10 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-lg shadow-md hover:shadow-lg transition-all z-10"
-                >
-                  <Bell className="w-5 h-5 text-gray-700" />
-                  {unreadNotificationCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                      {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
-                    </span>
-                  )}
-                </motion.button>
-                
-                {/* Notification Dropdown */}
-                <AnimatePresence>
-                  {showNotificationDropdown && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.2 }}
-                      className="absolute right-0 mt-2 z-50"
-                    >
-                      <NotificationDropdown
-                        onClose={() => setShowNotificationDropdown(false)}
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
             </div>
           </div>
 
@@ -542,45 +476,6 @@ export default function EmployeeDashboard() {
                   )}
                 </motion.button>
               )}
-              
-              {/* Notification Button */}
-              <div className="relative hidden md:block">
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    setShowNotificationDropdown(!showNotificationDropdown);
-                    fetchUnreadNotificationCount(); // Refresh count when opening
-                  }}
-                  className="relative flex items-center justify-center w-10 h-10 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-lg shadow-md hover:shadow-lg transition-all z-10"
-                >
-                  <Bell className="w-5 h-5 text-gray-700" />
-                  {unreadNotificationCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                      {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
-                    </span>
-                  )}
-                </motion.button>
-                
-                {/* Notification Dropdown */}
-                <AnimatePresence>
-                  {showNotificationDropdown && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.2 }}
-                      className="absolute right-0 mt-2 z-50"
-                    >
-                      <NotificationDropdown
-                        onClose={() => setShowNotificationDropdown(false)}
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
             </div>
           </div>
 

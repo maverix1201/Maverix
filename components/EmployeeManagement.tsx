@@ -81,7 +81,6 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
       const hasNoRestrictions = clockInTimeValue === 'N/R' || clockInTimeValue.trim() === '';
       // If it's "N/R", set clockInTime to empty for the form, otherwise use the actual value
       const formClockInTime = clockInTimeValue === 'N/R' ? '' : clockInTimeValue;
-      console.log('[EmployeeManagement] Opening modal for employee:', employee.name, 'clockInTime:', clockInTimeValue, 'hasNoRestrictions:', hasNoRestrictions);
       setFormData({
         name: employee.name,
         email: employee.email,
@@ -139,23 +138,15 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
       // Otherwise, send the time value or empty string
       if (noClockInRestrictions) {
         requestBody.clockInTime = 'N/R';
-        console.log('[EmployeeManagement] No restrictions selected, sending "N/R"');
       } else if (editingEmployee) {
         // When editing, always include clockInTime
         // Get the value from formData, default to empty string if not set
         const timeValue = formData.clockInTime ? String(formData.clockInTime).trim() : '';
         requestBody.clockInTime = timeValue; // Always include, even if empty
-        console.log('[EmployeeManagement] clockInTime value for edit:', timeValue, 'Length:', timeValue.length, 'Type:', typeof timeValue, 'Original:', formData.clockInTime);
       } else if (formData.clockInTime && formData.clockInTime.trim() !== '') {
         // When creating, only include if it has a value
         requestBody.clockInTime = formData.clockInTime.trim();
       }
-      
-      // Debug logging
-      console.log('[EmployeeManagement] Submitting form data:', formData);
-      console.log('[EmployeeManagement] Request body:', requestBody);
-      console.log('[EmployeeManagement] weeklyOff being sent:', requestBody.weeklyOff);
-      console.log('[EmployeeManagement] clockInTime being sent:', requestBody.clockInTime);
 
       const cacheBustUrl = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
       const res = await fetch(cacheBustUrl, {
@@ -176,12 +167,6 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
         return;
       }
 
-      // Log the response to see what was returned
-      console.log('[EmployeeManagement] Update response:', data);
-      if (data.user) {
-        console.log('[EmployeeManagement] Updated user weeklyOff:', data.user.weeklyOff);
-      }
-
       // Update the employee in the local state immediately with the response data
       if (editingEmployee && data.user) {
         const updatedEmployee = {
@@ -189,24 +174,16 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
           weeklyOff: Array.isArray(data.user.weeklyOff) ? data.user.weeklyOff : [],
           clockInTime: data.user.clockInTime || undefined,
         };
-        console.log('[EmployeeManagement] Updating local state with:', {
-          name: updatedEmployee.name,
-          weeklyOff: updatedEmployee.weeklyOff,
-          clockInTime: updatedEmployee.clockInTime,
-        });
         setEmployees((prevEmployees) =>
           prevEmployees.map((emp) =>
             emp._id === editingEmployee._id ? updatedEmployee : emp
           )
         );
-        console.log('[EmployeeManagement] Updated local state with response data');
-        console.log('[EmployeeManagement] Updated user clockInTime:', data.user.clockInTime);
       }
 
       // Refresh employee list to ensure consistency (including weeklyOff)
       try {
         await fetchEmployees();
-        console.log('[EmployeeManagement] Employee list refreshed after update');
       } catch (fetchErr) {
         console.error('Error refreshing employee list:', fetchErr);
         // If fetch fails, still show success but log the error
@@ -286,7 +263,6 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
           .filter((u: Employee) => u.role !== 'admin')
           .map((u: Employee) => {
             const weeklyOffArray = Array.isArray(u.weeklyOff) ? u.weeklyOff : [];
-            console.log(`[EmployeeManagement] Employee ${u.name} weeklyOff:`, weeklyOffArray, 'clockInTime:', u.clockInTime);
             return {
               ...u,
               weeklyOff: weeklyOffArray,
@@ -296,7 +272,6 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
               approved: u.approved ?? false,
             };
           });
-        console.log('[EmployeeManagement] Fetched employees with weeklyOff:', filteredUsers.map((u: Employee) => ({ name: u.name, weeklyOff: u.weeklyOff, clockInTime: u.clockInTime })));
         setEmployees(filteredUsers);
       } else {
         console.error('Failed to fetch employees:', data.error || 'Unknown error');
@@ -750,7 +725,6 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
                     <div className="flex flex-wrap gap-1">
                       {(() => {
                         const weeklyOffArray = Array.isArray(employee.weeklyOff) ? employee.weeklyOff : [];
-                        console.log(`[Display] Employee ${employee.name} weeklyOff:`, weeklyOffArray, 'Type:', typeof employee.weeklyOff);
                         if (weeklyOffArray.length > 0) {
                           return weeklyOffArray.map((day: string) => (
                             <span
@@ -979,7 +953,6 @@ export default function EmployeeManagement({ initialEmployees, canChangeRole = t
                     value={formData.clockInTime || ''}
                     onChange={(e) => {
                       const timeValue = e.target.value;
-                      console.log('[EmployeeManagement] Clock-in time changed to:', timeValue);
                       setFormData({ ...formData, clockInTime: timeValue });
                       if (timeValue && timeValue.trim() !== '') {
                         setNoClockInRestrictions(false);

@@ -33,7 +33,6 @@ export async function getPenaltyDeductionLeaveType(options?: {
       isActive: true,
     });
     await casualLeaveType.save();
-    console.log('[Penalty Utils] Created Casual Leave type');
   }
 
   return casualLeaveType;
@@ -114,7 +113,6 @@ export async function checkAndCreatePenalty(
     }
 
     const clockInTimeStr = `${String(clockInHours).padStart(2, '0')}:${String(clockInMinutes).padStart(2, '0')}`;
-    console.log(`[Penalty Utils] User ${userId} clocked in at ${clockInTimeStr} (after limit ${timeLimit})`);
 
     // Get max late days from settings
     const maxLateDaysSetting = await Settings.findOne({ key: 'maxLateDays' });
@@ -151,7 +149,6 @@ export async function checkAndCreatePenalty(
     }
 
     const lateArrivalCount = lateArrivalDays.size;
-    console.log(`[Penalty Utils] User ${userId} has ${lateArrivalCount} late arrival days this month (max allowed: ${maxLateDays})`);
 
     // Check if penalty should be created
     // If maxLateDays is 0, create penalty immediately (no grace period)
@@ -162,7 +159,6 @@ export async function checkAndCreatePenalty(
     const shouldCreatePenalty = maxLateDays === 0 ? lateArrivalCount > 0 : lateArrivalCount > maxLateDays;
 
     if (!shouldCreatePenalty) {
-      console.log(`[Penalty Utils] No penalty needed: ${lateArrivalCount} late arrivals is within limit of ${maxLateDays}`);
       return {
         shouldCreatePenalty: false,
         message: `User has ${lateArrivalCount} late arrivals (within limit of ${maxLateDays})`,
@@ -170,8 +166,6 @@ export async function checkAndCreatePenalty(
         maxLateDays,
       };
     }
-
-    console.log(`[Penalty Utils] Penalty condition met: ${lateArrivalCount} late arrivals exceeds max of ${maxLateDays}`);
 
     // Check if penalty or leave deduction already exists for today
     // This prevents multiple penalties/deductions for multiple clock-ins on the same day
@@ -190,7 +184,6 @@ export async function checkAndCreatePenalty(
     });
 
     if (existingPenalty) {
-      console.log(`[Penalty Utils] Penalty already exists for today - User ${userId}`);
       return {
         shouldCreatePenalty: false,
         message: 'Penalty already exists for today',
@@ -212,7 +205,6 @@ export async function checkAndCreatePenalty(
         });
 
         if (existingDeduction) {
-          console.log(`[Penalty Utils] Leave deduction already exists for today - User ${userId}`);
           return {
             shouldCreatePenalty: false,
             message: 'Penalty leave deduction already exists for today',
@@ -238,7 +230,6 @@ export async function checkAndCreatePenalty(
     });
 
     await penalty.save();
-    console.log(`[Penalty Utils] Created penalty for user ${userId} - Late arrivals: ${lateArrivalCount}, Max allowed: ${maxLateDays}`);
 
     // Deduct 0.5 casual leave when penalty is created
     try {
@@ -260,7 +251,6 @@ export async function checkAndCreatePenalty(
       });
 
       if (existingDeduction) {
-        console.log(`[Penalty Utils] Leave deduction already exists for today - skipping deduction. User ${userId}`);
         // Penalty was created but leave already deducted, so just return success
         return {
           shouldCreatePenalty: true,
@@ -308,9 +298,6 @@ export async function checkAndCreatePenalty(
       });
 
       await leaveDeduction.save();
-      console.log(
-        `[Penalty Utils] Deducted ${getPenaltyLeaveDeductionDays()} casual leave for penalty - User ${userId}`
-      );
 
       // Update the allotted leave's remainingDays
       if (allottedLeave) {
@@ -325,7 +312,6 @@ export async function checkAndCreatePenalty(
         const totalUsed = allApprovedRequests.reduce((sum: number, req: any) => sum + (req.days || 0), 0);
         allottedLeave.remainingDays = Math.max(0, (allottedLeave.days || 0) - totalUsed);
         await allottedLeave.save();
-        console.log(`[Penalty Utils] Updated allotted leave remainingDays to ${allottedLeave.remainingDays} - User ${userId}`);
       }
     } catch (leaveError: any) {
       console.error('[Penalty Utils] Error deducting leave for penalty:', leaveError);

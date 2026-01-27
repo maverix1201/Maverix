@@ -6,7 +6,6 @@ import Leave from '@/models/Leave';
 import mongoose from 'mongoose';
 import { sendLeaveStatusNotificationToEmployee } from '@/utils/sendEmail';
 import { format } from 'date-fns';
-import { createNotification } from '@/lib/notificationManager';
 
 export const dynamic = 'force-dynamic';
 
@@ -295,46 +294,6 @@ export async function PUT(
     } catch (emailError) {
       // Log email error but don't fail the request
       console.error('Error sending leave status notification email:', emailError);
-    }
-
-    // Create notification for the employee
-    try {
-      const user = typeof updatedLeave.userId === 'object' && updatedLeave.userId && 'email' in updatedLeave.userId ? updatedLeave.userId as any : null;
-      const leaveType = typeof updatedLeave.leaveType === 'object' && updatedLeave.leaveType && 'name' in updatedLeave.leaveType ? updatedLeave.leaveType as any : null;
-      const approver = typeof updatedLeave.approvedBy === 'object' && updatedLeave.approvedBy && 'name' in updatedLeave.approvedBy ? updatedLeave.approvedBy as any : null;
-
-      if (user && 'email' in user && user.email && updatedLeave.userId) {
-        const notificationType = status === 'approved' ? 'leave_approved' : 'leave_rejected';
-        const title = status === 'approved' 
-          ? 'Leave Request Approved' 
-          : 'Leave Request Rejected';
-        
-        const approverName = approver ? approver.name : 'MaveriX';
-        const daysText = updatedLeave.days === 0.5 
-          ? '0.5-day' 
-          : updatedLeave.days < 1 
-          ? `${updatedLeave.days.toFixed(2)}-day` 
-          : `${updatedLeave.days}-day`;
-        
-        // Format date - if same day, show single date, otherwise show range
-        const startDate = format(new Date(updatedLeave.startDate), 'MMM dd, yyyy');
-        const endDate = format(new Date(updatedLeave.endDate), 'MMM dd, yyyy');
-        const dateText = startDate === endDate ? startDate : `${startDate} - ${endDate}`;
-        
-        const action = status === 'approved' ? 'approved' : 'declined';
-        const message = `${approverName} ${action} your ${daysText} leave for ${dateText}.`;
-
-        await createNotification({
-          userId: updatedLeave.userId,
-          type: notificationType,
-          title,
-          message,
-          leaveId: (updatedLeave._id as mongoose.Types.ObjectId),
-        });
-      }
-    } catch (notificationError) {
-      // Log notification error but don't fail the request
-      console.error('Error creating notification:', notificationError);
     }
 
     return NextResponse.json({

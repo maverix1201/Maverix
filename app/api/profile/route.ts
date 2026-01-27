@@ -38,7 +38,6 @@ export async function GET(request: NextRequest) {
 
     // Convert to plain object and handle large profileImage
     const userObj = user.toObject ? user.toObject() : user;
-    console.log('[Profile API GET] User joiningYear from DB:', userObj.joiningYear);
     
     // If profileImage is included and too large, exclude it to prevent issues
     if (includeImage && userObj.profileImage && typeof userObj.profileImage === 'string') {
@@ -124,16 +123,12 @@ export async function PUT(request: NextRequest) {
 
     // Update joining year
     if (joiningYear !== undefined) {
-      console.log('[Profile API] joiningYear received:', joiningYear, 'Type:', typeof joiningYear);
-      
       // Handle null or empty values
       if (isClearingJoiningYear) {
         // We'll unset in the DB update operation below; keep updateFields minimal.
-        console.log('[Profile API] Setting joiningYear to null');
       } else {
         // Convert to number if it's a string
         const yearNum = typeof joiningYear === 'string' ? parseInt(joiningYear, 10) : joiningYear;
-        console.log('[Profile API] Parsed yearNum:', yearNum, 'isNaN:', isNaN(yearNum), 'Valid range:', yearNum >= 1900 && yearNum <= 2100);
         
         if (!isNaN(yearNum) && yearNum >= 1900 && yearNum <= 2100) {
           updateFields.joiningYear = yearNum;
@@ -141,9 +136,6 @@ export async function PUT(request: NextRequest) {
           if (!previousJoiningYear) {
             updateFields.joiningYearUpdatedAt = new Date();
           }
-          console.log('[Profile API] Setting joiningYear to:', yearNum);
-        } else {
-          console.log('[Profile API] Invalid joiningYear, skipping update');
         }
       }
     }
@@ -169,31 +161,25 @@ export async function PUT(request: NextRequest) {
     if (location !== undefined && location !== null) {
       const trimmedLocation = typeof location === 'string' ? location.trim() : location;
       updateFields.location = trimmedLocation && trimmedLocation !== '' ? trimmedLocation : null;
-      console.log('[Profile API] Updating location - input:', location, 'type:', typeof location, 'output:', updateFields.location);
     } else if (location === null || location === '') {
       // Explicitly set to null if provided as null or empty string
       updateFields.location = null;
-      console.log('[Profile API] Setting location to null');
     }
 
     // Update PAN number - always update if provided (even if empty string)
     if (panNumber !== undefined && panNumber !== null) {
       const trimmedPan = typeof panNumber === 'string' ? panNumber.trim() : panNumber;
       updateFields.panNumber = trimmedPan && trimmedPan !== '' ? trimmedPan.toUpperCase() : null;
-      console.log('[Profile API] Updating panNumber - input:', panNumber, 'type:', typeof panNumber, 'output:', updateFields.panNumber);
     } else if (panNumber === null || panNumber === '') {
       updateFields.panNumber = null;
-      console.log('[Profile API] Setting panNumber to null');
     }
 
     // Update Aadhar number - always update if provided (even if empty string)
     if (aadharNumber !== undefined && aadharNumber !== null) {
       const trimmedAadhar = typeof aadharNumber === 'string' ? aadharNumber.trim() : aadharNumber;
       updateFields.aadharNumber = trimmedAadhar && trimmedAadhar !== '' ? trimmedAadhar : null;
-      console.log('[Profile API] Updating aadharNumber - input:', aadharNumber, 'type:', typeof aadharNumber, 'output:', updateFields.aadharNumber);
     } else if (aadharNumber === null || aadharNumber === '') {
       updateFields.aadharNumber = null;
-      console.log('[Profile API] Setting aadharNumber to null');
     }
 
     // Update password if provided
@@ -216,8 +202,6 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
     }
 
-    console.log('[Profile API] Update fields to save:', JSON.stringify(updateFields, null, 2));
-
     // Update user using findByIdAndUpdate to ensure all fields are saved
     const updateOp: any = { $set: updateFields };
     if (isClearingJoiningYear) {
@@ -229,11 +213,6 @@ export async function PUT(request: NextRequest) {
       runValidators: true,
     });
 
-    console.log('[Profile API] User updated, joiningYear in DB:', updatedUser?.joiningYear);
-    console.log('[Profile API] User updated, location in DB:', updatedUser?.location);
-    console.log('[Profile API] User updated, panNumber in DB:', updatedUser?.panNumber);
-    console.log('[Profile API] User updated, aadharNumber in DB:', updatedUser?.aadharNumber);
-
     // If joiningYear was cleared, it was unset together with empId in the update operation above.
 
     // Employee ID rule:
@@ -244,14 +223,12 @@ export async function PUT(request: NextRequest) {
       if (!currentEmpId) {
         const empId = await generateEmployeeId(updatedUser.joiningYear);
         await User.findByIdAndUpdate(userId, { $set: { empId } });
-        console.log('[Profile API] Generated and saved new empId:', empId);
       } else {
         const seq = extractEmployeeIdSequence(currentEmpId);
         const expectedPrefix = `${updatedUser.joiningYear}EMP-`;
         if (seq !== null && !currentEmpId.startsWith(expectedPrefix)) {
           const newEmpId = `${updatedUser.joiningYear}EMP-${String(seq).padStart(3, '0')}`;
           await User.findByIdAndUpdate(userId, { $set: { empId: newEmpId } });
-          console.log('[Profile API] Updated empId year prefix:', newEmpId);
         }
       }
     }
@@ -278,19 +255,12 @@ export async function PUT(request: NextRequest) {
       }
       userResponse = queriedUser;
     }
-
-    // Debug: Log the fields to ensure they're being returned
-    console.log('[Profile API] UserResponse - location:', userResponse.location);
-    console.log('[Profile API] UserResponse - panNumber:', userResponse.panNumber);
-    console.log('[Profile API] UserResponse - aadharNumber:', userResponse.aadharNumber);
     
     // Explicitly ensure these fields are in the response (even if null/undefined)
     // This guarantees they're always included in the JSON response
     userResponse.location = userResponse.location !== undefined ? userResponse.location : null;
     userResponse.panNumber = userResponse.panNumber !== undefined ? userResponse.panNumber : null;
     userResponse.aadharNumber = userResponse.aadharNumber !== undefined ? userResponse.aadharNumber : null;
-    
-    console.log('[Profile API] Final response - location:', userResponse.location, 'panNumber:', userResponse.panNumber, 'aadharNumber:', userResponse.aadharNumber);
 
     // If profileImage was just updated, include it in response (it's already in the updateFields)
     if (updateFields.profileImage !== undefined) {

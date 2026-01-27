@@ -55,12 +55,10 @@ export async function GET(request: NextRequest) {
       : penaltyLateCount > maxLateDays;
 
     if (!isPenaltyValid) {
-      console.log(`[Penalty API] Penalty found but invalid: lateArrivalCount=${penaltyLateCount}, current maxLateDays=${maxLateDays}`);
       // Penalty exists but is no longer valid (maxLateDays was increased)
       // Delete the invalid penalty from database
       try {
         await Penalty.deleteOne({ _id: penalty._id });
-        console.log(`[Penalty API] Deleted invalid penalty ${penalty._id}`);
       } catch (deleteError: any) {
         console.error(`[Penalty API] Error deleting invalid penalty:`, deleteError);
       }

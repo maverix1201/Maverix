@@ -132,11 +132,6 @@ export default function EmployeeFinancePage() {
       const res = await fetch('/api/profile');
       const data = await res.json();
       if (res.ok && data.user) {
-        console.log('[Finance Page] Fetched user profile:', {
-          location: data.user.location,
-          panNumber: data.user.panNumber,
-          aadharNumber: data.user.aadharNumber,
-        });
         setUser(data.user);
         setBankFormData({
           bankName: data.user.bankName || '',
@@ -190,8 +185,6 @@ export default function EmployeeFinancePage() {
         aadharNumber: bankFormData.aadharNumber,
       };
       
-      console.log('[Finance Page] Sending update request:', requestBody);
-      
       const res = await fetch('/api/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -209,11 +202,6 @@ export default function EmployeeFinancePage() {
       toast.success('Bank details saved successfully');
       // Update user state with the response data
       if (data.user) {
-        console.log('[Finance Page] Received user data:', {
-          location: data.user.location,
-          panNumber: data.user.panNumber,
-          aadharNumber: data.user.aadharNumber,
-        });
         // Update user state - ensure all fields are included (preserve null values)
         const updatedUser = {
           ...data.user,
@@ -221,11 +209,6 @@ export default function EmployeeFinancePage() {
           panNumber: data.user.panNumber !== undefined ? data.user.panNumber : null,
           aadharNumber: data.user.aadharNumber !== undefined ? data.user.aadharNumber : null,
         };
-        console.log('[Finance Page] Setting user state:', {
-          location: updatedUser.location,
-          panNumber: updatedUser.panNumber,
-          aadharNumber: updatedUser.aadharNumber,
-        });
         setUser(updatedUser);
         // Also update form data to reflect saved values
         setBankFormData({
@@ -323,11 +306,6 @@ export default function EmployeeFinancePage() {
       const compressedBlob = await compressImage(file, 100, 1200, 1200);
       const compressedFile = blobToFile(compressedBlob, file.name, 'image/jpeg');
       const compressedSizeKB = getFileSizeKB(compressedFile);
-      
-      // Log compression info (only show toast if significant compression occurred)
-      if (originalSizeKB > compressedSizeKB && (originalSizeKB - compressedSizeKB) > 50) {
-        console.log(`Document compressed from ${originalSizeKB.toFixed(2)}KB to ${compressedSizeKB.toFixed(2)}KB`);
-      }
       
       // Verify compression was successful (should be <= 100KB)
       if (compressedSizeKB > 100) {

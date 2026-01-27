@@ -172,9 +172,6 @@ export default function ResignationManagement({ initialResignations }: Resignati
       const data = await res.json();
 
       if (res.ok) {
-        console.log('=== ResignationManagement: FETCHED RESIGNATIONS ===');
-        console.log('Raw data:', data.resignations);
-        
         // Ensure assets are arrays and notice period dates/clearances are properly formatted
         const processedResignations = (data.resignations || []).map((r: any) => {
           let assetsArray: string[] = [];
@@ -194,13 +191,6 @@ export default function ResignationManagement({ initialResignations }: Resignati
             ? (typeof r.noticePeriodEndDate === 'string' ? r.noticePeriodEndDate : new Date(r.noticePeriodEndDate).toISOString())
             : undefined;
           
-          console.log(`Resignation ${r._id}:`, {
-            assets: assetsArray,
-            noticePeriodStartDate,
-            noticePeriodEndDate,
-            clearances: r.clearances,
-          });
-          
           return {
             ...r,
             assets: assetsArray,
@@ -211,7 +201,6 @@ export default function ResignationManagement({ initialResignations }: Resignati
           };
         });
         
-        console.log('Processed resignations:', processedResignations);
         setResignations(processedResignations);
       } else {
         toast.error(data.error || 'Failed to fetch resignations');
@@ -712,14 +701,12 @@ export default function ResignationManagement({ initialResignations }: Resignati
                     </div>
                     {(() => {
                       const assets = resignation.assets;
-                      console.log('ResignationManagement - Rendering assets for:', resignation._id, 'Assets:', assets, 'Type:', typeof assets, 'Is array:', Array.isArray(assets));
                       
                       if (assets && Array.isArray(assets) && assets.length > 0) {
                         return (
                           <div className="flex flex-wrap gap-1.5 ml-5">
                             {assets.map((asset: string) => {
                               const assetInfo = companyAssets.find((a) => a.id === asset);
-                              console.log('ResignationManagement - Looking for asset:', asset, 'Found:', assetInfo);
                               return assetInfo ? (
                                 <span
                                   key={asset}

@@ -43,11 +43,9 @@ function getFromEmail(): string {
 
   if (fromEmail) {
     const formattedEmail = `${displayName} <${fromEmail}>`;
-    console.log('[Email] Using sender:', formattedEmail);
     return formattedEmail;
   }
 
-  console.log('[Email] No FROM_EMAIL or SMTP_USER configured, using empty string');
   return '';
 }
 

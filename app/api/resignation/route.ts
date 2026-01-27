@@ -64,20 +64,7 @@ export async function GET(request: NextRequest) {
         noticePeriodComplied: r.noticePeriodComplied || false,
       };
       
-      console.log(`Resignation ${r._id}:`, {
-        assets: assetsArray,
-        noticePeriodStartDate: processed.noticePeriodStartDate,
-        noticePeriodEndDate: processed.noticePeriodEndDate,
-        rawStart: r.noticePeriodStartDate,
-        rawEnd: r.noticePeriodEndDate,
-      });
-      
       return processed;
-    });
-
-    console.log('=== FETCHED RESIGNATIONS ===');
-    processedResignations.forEach((r: any) => {
-      console.log(`ID: ${r._id}, Assets:`, r.assets, 'Type:', typeof r.assets, 'IsArray:', Array.isArray(r.assets), 'Length:', r.assets?.length);
     });
 
     return NextResponse.json({ resignations: processedResignations }, { status: 200 });
@@ -115,24 +102,6 @@ export async function POST(request: NextRequest) {
     } = await request.json();
     const userId = (session.user as any)?.id;
 
-    console.log('=== RECEIVED RESIGNATION DATA ===');
-    console.log('Full data:', {
-      resignationDate,
-      reason,
-      feedback,
-      assets,
-      noticePeriodStartDate,
-      noticePeriodEndDate,
-      handoverNotes,
-      clearancesAcknowledged,
-    });
-    console.log('Notice period dates:', {
-      start: noticePeriodStartDate,
-      end: noticePeriodEndDate,
-      startType: typeof noticePeriodStartDate,
-      endType: typeof noticePeriodEndDate,
-    });
-
     if (!resignationDate || !reason) {
       return NextResponse.json(
         { error: 'Resignation date and reason are required' },
@@ -165,13 +134,6 @@ export async function POST(request: NextRequest) {
         assetsArray = [assets.trim()];
       }
     }
-    
-    console.log('=== PROCESSING ASSETS ===');
-    console.log('Raw assets input:', assets);
-    console.log('Assets type:', typeof assets);
-    console.log('Assets is array:', Array.isArray(assets));
-    console.log('Processed assets array:', assetsArray);
-    console.log('Assets array length:', assetsArray.length);
 
     // Ensure notice period dates are properly formatted
     let noticeStart: Date | null = null;
@@ -183,15 +145,12 @@ export async function POST(request: NextRequest) {
         const parsedStart = new Date(noticePeriodStartDate);
         if (!isNaN(parsedStart.getTime())) {
           noticeStart = parsedStart;
-          console.log('Successfully parsed notice period start date:', noticeStart);
         } else {
           console.error('Invalid notice period start date (NaN):', noticePeriodStartDate);
         }
       } catch (error) {
         console.error('Error parsing notice period start date:', noticePeriodStartDate, error);
       }
-    } else {
-      console.log('Notice period start date is null, undefined, or empty - skipping');
     }
     
     // Handle notice period end date - check for null, undefined, or empty string
@@ -200,24 +159,13 @@ export async function POST(request: NextRequest) {
         const parsedEnd = new Date(noticePeriodEndDate);
         if (!isNaN(parsedEnd.getTime())) {
           noticeEnd = parsedEnd;
-          console.log('Successfully parsed notice period end date:', noticeEnd);
         } else {
           console.error('Invalid notice period end date (NaN):', noticePeriodEndDate);
         }
       } catch (error) {
         console.error('Error parsing notice period end date:', noticePeriodEndDate, error);
       }
-    } else {
-      console.log('Notice period end date is null, undefined, or empty - skipping');
     }
-    
-    console.log('=== NOTICE PERIOD PROCESSING ===');
-    console.log('Raw noticePeriodStartDate:', noticePeriodStartDate);
-    console.log('Raw noticePeriodEndDate:', noticePeriodEndDate);
-    console.log('Processed noticeStart:', noticeStart);
-    console.log('Processed noticeEnd:', noticeEnd);
-    console.log('Notice start type:', typeof noticeStart);
-    console.log('Notice end type:', typeof noticeEnd);
 
     // Build resignation object with all fields explicitly set
     const resignationData: any = {
@@ -238,25 +186,11 @@ export async function POST(request: NextRequest) {
     // Only add notice period dates if they have valid values
     if (noticeStart !== null) {
       resignationData.noticePeriodStartDate = noticeStart;
-      console.log('Adding noticePeriodStartDate to resignation:', noticeStart);
-    } else {
-      console.log('Skipping noticePeriodStartDate (null or invalid)');
     }
 
     if (noticeEnd !== null) {
       resignationData.noticePeriodEndDate = noticeEnd;
-      console.log('Adding noticePeriodEndDate to resignation:', noticeEnd);
-    } else {
-      console.log('Skipping noticePeriodEndDate (null or invalid)');
     }
-
-    console.log('=== RESIGNATION DATA TO SAVE ===');
-    console.log('Resignation data keys:', Object.keys(resignationData));
-    console.log('Notice period in data:', {
-      start: resignationData.noticePeriodStartDate,
-      end: resignationData.noticePeriodEndDate,
-    });
-    console.log('Clearances in data:', resignationData.clearances);
 
     const resignation = new Resignation(resignationData);
     
@@ -269,30 +203,9 @@ export async function POST(request: NextRequest) {
     }
     resignation.markModified('clearances');
     resignation.markModified('assets');
-    
-    console.log('=== BEFORE SAVE ===');
-    console.log('Resignation object:', {
-      assets: resignation.assets,
-      noticePeriodStartDate: resignation.noticePeriodStartDate,
-      noticePeriodEndDate: resignation.noticePeriodEndDate,
-      clearances: resignation.clearances,
-    });
-    console.log('Resignation object keys:', Object.keys(resignation.toObject()));
-    console.log('Is noticePeriodStartDate modified?', resignation.isModified('noticePeriodStartDate'));
-    console.log('Is noticePeriodEndDate modified?', resignation.isModified('noticePeriodEndDate'));
-    console.log('Is clearances modified?', resignation.isModified('clearances'));
 
     // Save the resignation with explicit validation
     await resignation.save({ validateBeforeSave: true });
-    
-    console.log('=== AFTER SAVE ===');
-    console.log('Resignation ID:', resignation._id);
-    console.log('Saved document:', {
-      assets: resignation.assets,
-      noticePeriodStartDate: resignation.noticePeriodStartDate,
-      noticePeriodEndDate: resignation.noticePeriodEndDate,
-      clearances: resignation.clearances,
-    });
     
     // Reload from database to ensure we have the latest data - use lean() to get plain object
     const savedResignationRaw = await Resignation.findById(resignation._id).lean();
@@ -304,27 +217,11 @@ export async function POST(request: NextRequest) {
     // Type assertion: findById().lean() returns a single document or null, not an array
     const resignationDoc = savedResignationRaw as any;
     
-    console.log('=== AFTER RELOAD (lean) ===');
-    console.log('Raw saved resignation:', {
-      assets: resignationDoc.assets,
-      noticePeriodStartDate: resignationDoc.noticePeriodStartDate,
-      noticePeriodEndDate: resignationDoc.noticePeriodEndDate,
-      clearances: resignationDoc.clearances,
-    });
-    console.log('All keys in saved document:', Object.keys(savedResignationRaw));
-    
     // Also get the full document for population
     const savedResignation = await Resignation.findById(resignation._id);
     if (!savedResignation) {
       throw new Error('Failed to retrieve saved resignation for population');
     }
-    
-    console.log('=== AFTER RELOAD (full document) ===');
-    console.log('Full document assets:', savedResignation.assets);
-    console.log('Full document notice period:', {
-      start: savedResignation.noticePeriodStartDate,
-      end: savedResignation.noticePeriodEndDate,
-    });
     
     await savedResignation.populate('userId', 'name email profileImage empId designation');
 
@@ -355,16 +252,6 @@ export async function POST(request: NextRequest) {
       admin: { status: 'pending' },
       finance: { status: 'pending' },
     };
-    
-    console.log('=== FINAL RESPONSE DATA ===');
-    console.log('Response assets:', responseData.assets);
-    console.log('Response notice period:', {
-      start: responseData.noticePeriodStartDate,
-      end: responseData.noticePeriodEndDate,
-      rawStart: resignationDoc.noticePeriodStartDate,
-      rawEnd: resignationDoc.noticePeriodEndDate,
-    });
-    console.log('Response clearances:', responseData.clearances);
     
     return NextResponse.json(
       { message: 'Resignation submitted successfully', resignation: responseData },
